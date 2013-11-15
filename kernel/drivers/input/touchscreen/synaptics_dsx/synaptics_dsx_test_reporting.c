@@ -31,7 +31,6 @@
 #define WATCHDOG_HRTIMER
 #define WATCHDOG_TIMEOUT_S 2
 #define FORCE_TIMEOUT_100MS 10
-#define STATUS_WORK_INTERVAL 20 /* ms */
 
 /*
 #define RAW_HEX
@@ -985,7 +984,7 @@ struct synaptics_rmi4_f54_handle {
 	struct kobject *attr_dir;
 	struct hrtimer watchdog;
 	struct work_struct timeout_work;
-	struct delayed_work status_work;
+	struct work_struct status_work;
 	struct workqueue_struct *status_workqueue;
 	struct synaptics_rmi4_data *rmi4_data;
 };
@@ -1710,9 +1709,8 @@ static void timeout_set_status(struct work_struct *work)
 					"%s: Report type not supported by FW\n",
 					__func__);
 		} else {
-			queue_delayed_work(f54->status_workqueue,
-					&f54->status_work,
-					0);
+			queue_work(f54->status_workqueue,
+					&f54->status_work);
 			mutex_unlock(&f54->status_mutex);
 			return;
 		}
@@ -3188,9 +3186,8 @@ static void synaptics_rmi4_f54_attn(struct synaptics_rmi4_data *rmi4_data,
 		return;
 
 	if (f54->intr_mask & intr_mask) {
-		queue_delayed_work(f54->status_workqueue,
-				&f54->status_work,
-				msecs_to_jiffies(STATUS_WORK_INTERVAL));
+		queue_work(f54->status_workqueue,
+				&f54->status_work);
 	}
 
 	return;
@@ -3300,8 +3297,7 @@ pdt_done:
 
 	f54->status_workqueue =
 			create_singlethread_workqueue("f54_status_workqueue");
-	INIT_DELAYED_WORK(&f54->status_work,
-			synaptics_rmi4_f54_status_work);
+	INIT_WORK(&f54->status_work, synaptics_rmi4_f54_status_work);
 
 #ifdef WATCHDOG_HRTIMER
 	/* Watchdog timer to catch unanswered get report commands */
@@ -3341,7 +3337,7 @@ static void synaptics_rmi4_f54_remove(struct synaptics_rmi4_data *rmi4_data)
 	hrtimer_cancel(&f54->watchdog);
 #endif
 
-	cancel_delayed_work_sync(&f54->status_work);
+	cancel_work_sync(&f54->status_work);
 	flush_workqueue(f54->status_workqueue);
 	destroy_workqueue(f54->status_workqueue);
 
