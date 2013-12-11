@@ -2585,6 +2585,12 @@ static int __devinit synaptics_rmi4_probe(struct platform_device *pdev)
 	register_early_suspend(&rmi4_data->early_suspend);
 #endif
 
+	if (!exp_data.initialized) {
+		mutex_init(&exp_data.mutex);
+		INIT_LIST_HEAD(&exp_data.list);
+		exp_data.initialized = true;
+	}
+
 	rmi4_data->irq = gpio_to_irq(bdata->irq_gpio);
 
 	retval = synaptics_rmi4_irq_enable(rmi4_data, true);
@@ -2593,12 +2599,6 @@ static int __devinit synaptics_rmi4_probe(struct platform_device *pdev)
 				"%s: Failed to enable attention interrupt\n",
 				__func__);
 		goto err_enable_irq;
-	}
-
-	if (!exp_data.initialized) {
-		mutex_init(&exp_data.mutex);
-		INIT_LIST_HEAD(&exp_data.list);
-		exp_data.initialized = true;
 	}
 
 	for (attr_count = 0; attr_count < ARRAY_SIZE(attrs); attr_count++) {
