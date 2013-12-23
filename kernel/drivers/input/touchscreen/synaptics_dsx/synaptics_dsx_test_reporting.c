@@ -582,7 +582,7 @@ static void test_set_report_size(void)
 		break;
 	case F54_ABS_RAW_CAP:
 	case F54_ABS_DELTA_CAP:
-		f54->report_size = 2 * (tx + rx);
+		f54->report_size = 4 * (tx + rx);
 		break;
 	default:
 		f54->report_size = 0;
