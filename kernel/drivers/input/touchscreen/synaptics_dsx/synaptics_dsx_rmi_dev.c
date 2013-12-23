@@ -130,7 +130,7 @@ static int rmidev_sysfs_irq_enable(struct synaptics_rmi4_data *rmi4_data,
 
 		retval = request_threaded_irq(rmi4_data->irq, NULL,
 				rmidev_sysfs_irq, irq_flags,
-				"synaptics_dsx_rmidev", rmi4_data);
+				PLATFORM_DRIVER_NAME, rmi4_data);
 		if (retval < 0) {
 			dev_err(rmi4_data->pdev->dev.parent,
 					"%s: Failed to create irq thread\n",
@@ -252,14 +252,14 @@ static ssize_t rmidev_sysfs_release_store(struct device *dev,
 	if (input != 1)
 		return -EINVAL;
 
-	rmi4_data->reset_device(rmi4_data);
-
 	rmidev_sysfs_irq_enable(rmi4_data, false);
 	rmi4_data->irq_enable(rmi4_data, true);
 
 	dev_dbg(rmi4_data->pdev->dev.parent,
 			"%s: Attention interrupt enabled\n",
 			__func__);
+
+	rmi4_data->reset_device(rmi4_data);
 
 	return count;
 }
@@ -472,8 +472,6 @@ static int rmidev_release(struct inode *inp, struct file *filp)
 	if (!dev_data)
 		return -EACCES;
 
-	rmi4_data->reset_device(rmi4_data);
-
 	mutex_lock(&(dev_data->file_mutex));
 
 	dev_data->ref_count--;
@@ -486,6 +484,8 @@ static int rmidev_release(struct inode *inp, struct file *filp)
 			__func__);
 
 	mutex_unlock(&(dev_data->file_mutex));
+
+	rmi4_data->reset_device(rmi4_data);
 
 	return 0;
 }
