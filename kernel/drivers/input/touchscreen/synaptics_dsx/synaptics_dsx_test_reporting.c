@@ -905,7 +905,15 @@ static ssize_t test_sysfs_report_size_show(struct device *dev,
 static ssize_t test_sysfs_status_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%u\n", f54->status);
+	int retval;
+
+	mutex_lock(&f54->status_mutex);
+
+	retval = snprintf(buf, PAGE_SIZE, "%u\n", f54->status);
+
+	mutex_unlock(&f54->status_mutex);
+
+	return retval;
 }
 
 static ssize_t test_sysfs_do_preparation_store(struct device *dev,
