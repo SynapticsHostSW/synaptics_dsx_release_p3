@@ -380,6 +380,7 @@ struct synaptics_rmi4_f54_handle {
 	unsigned short fifoindex;
 	unsigned int report_size;
 	unsigned int data_buffer_size;
+	unsigned int data_pos;
 	enum f54_report_types report_type;
 	struct f54_query query;
 	struct f54_control control;
@@ -1034,6 +1035,8 @@ static ssize_t test_sysfs_get_report_store(struct device *dev,
 
 	f54->status = STATUS_BUSY;
 
+	f54->data_pos = 0;
+
 	hrtimer_start(&f54->watchdog,
 			ktime_set(GET_REPORT_TIMEOUT_S, 0),
 			HRTIMER_MODE_REL);
@@ -1228,6 +1231,7 @@ static ssize_t test_sysfs_data_read(struct file *data_file,
 		char *buf, loff_t pos, size_t count)
 {
 	int retval;
+	unsigned int read_size;
 	struct synaptics_rmi4_data *rmi4_data = f54->rmi4_data;
 
 	mutex_lock(&f54->status_mutex);
@@ -1236,25 +1240,22 @@ static ssize_t test_sysfs_data_read(struct file *data_file,
 	if (retval < 0)
 		goto exit;
 
-	if (count < f54->report_size) {
-		dev_err(rmi4_data->pdev->dev.parent,
-				"%s: Report type %d data size (%d) too large\n",
-				__func__, f54->report_type, f54->report_size);
-		retval = -EINVAL;
-		goto exit;
-	}
-
-	if (f54->report_data) {
-		memcpy(buf, f54->report_data, f54->report_size);
-		retval = f54->report_size;
-		goto exit;
-	} else {
+	if (!f54->report_data) {
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Report type %d data not available\n",
 				__func__, f54->report_type);
 		retval = -EINVAL;
 		goto exit;
 	}
+
+	if ((f54->data_pos + count) > f54->report_size)
+		read_size = f54->report_size - f54->data_pos;
+	else
+		read_size = min(count, f54->report_size);
+
+	memcpy(buf, f54->report_data + f54->data_pos, read_size);
+	f54->data_pos += read_size;
+	retval = read_size;
 
 exit:
 	mutex_unlock(&f54->status_mutex);
