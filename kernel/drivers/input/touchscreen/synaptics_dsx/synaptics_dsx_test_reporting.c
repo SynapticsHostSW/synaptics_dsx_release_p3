@@ -281,8 +281,14 @@ struct f54_query {
 			/* query 12 */
 			unsigned char number_of_sensing_frequencies:4;
 			unsigned char f54_query12_b4__7:4;
+		} __packed;
+		unsigned char data[14];
+	};
+};
 
-			/* query 13 */
+struct f54_query_13 {
+	union {
+		struct {
 			unsigned char has_ctrl86:1;
 			unsigned char has_ctrl87:1;
 			unsigned char has_ctrl87_sub0:1;
@@ -292,7 +298,55 @@ struct f54_query {
 			unsigned char has_noise_mitigation_enhancement:1;
 			unsigned char has_rail_im:1;
 		} __packed;
-		unsigned char data[15];
+		unsigned char data[1];
+	};
+};
+
+struct f54_query_15 {
+	union {
+		struct {
+			unsigned char has_ctrl90:1;
+			unsigned char has_transmit_strength:1;
+			unsigned char has_ctrl87_sub3:1;
+			unsigned char has_query16:1;
+			unsigned char has_query20:1;
+			unsigned char has_query21:1;
+			unsigned char has_query22:1;
+			unsigned char has_query25:1;
+		} __packed;
+		unsigned char data[1];
+	};
+};
+
+struct f54_query_16 {
+	union {
+		struct {
+			unsigned char has_query17:1;
+			unsigned char has_data17:1;
+			unsigned char has_ctrl92:1;
+			unsigned char has_ctrl93:1;
+			unsigned char has_ctrl94_query18:1;
+			unsigned char has_ctrl95_query19:1;
+			unsigned char has_ctrl99:1;
+			unsigned char has_ctrl100:1;
+		} __packed;
+		unsigned char data[1];
+	};
+};
+
+struct f54_query_21 {
+	union {
+		struct {
+			unsigned char has_abs_rx:1;
+			unsigned char has_abs_tx:1;
+			unsigned char has_ctrl91:1;
+			unsigned char has_ctrl96:1;
+			unsigned char has_ctrl97:1;
+			unsigned char has_ctrl98:1;
+			unsigned char has_data19:1;
+			unsigned char has_query24_data18:1;
+		} __packed;
+		unsigned char data[1];
 	};
 };
 
@@ -383,6 +437,10 @@ struct synaptics_rmi4_f54_handle {
 	unsigned int data_pos;
 	enum f54_report_types report_type;
 	struct f54_query query;
+	struct f54_query_13 query_13;
+	struct f54_query_15 query_15;
+	struct f54_query_16 query_16;
+	struct f54_query_21 query_21;
 	struct f54_control control;
 	struct mutex status_mutex;
 	struct kobject *sysfs_dir;
@@ -1628,11 +1686,11 @@ static int test_set_controls(void)
 		reg_addr += CONTROL_84_85_SIZE;
 
 	/* control 86 */
-	if ((f54->query.has_query13 == 1) && (f54->query.has_ctrl86 == 1))
+	if ((f54->query.has_query13 == 1) && (f54->query_13.has_ctrl86 == 1))
 		reg_addr += CONTROL_86_SIZE;
 
 	/* control 87 */
-	if ((f54->query.has_query13 == 1) && (f54->query.has_ctrl87 == 1))
+	if ((f54->query.has_query13 == 1) && (f54->query_13.has_ctrl87 == 1))
 		reg_addr += CONTROL_87_SIZE;
 
 	/* control 88 */
@@ -1652,6 +1710,87 @@ exit_no_mem:
 			"%s: Failed to alloc mem for control registers\n",
 			__func__);
 	return -ENOMEM;
+}
+
+static int test_set_queries(void)
+{
+	int retval;
+	unsigned char offset;
+	struct synaptics_rmi4_data *rmi4_data = f54->rmi4_data;
+
+	retval = synaptics_rmi4_reg_read(rmi4_data,
+			f54->query_base_addr,
+			f54->query.data,
+			sizeof(f54->query.data));
+	if (retval < 0)
+		return retval;
+
+	offset = sizeof(f54->query.data);
+
+	/* query 12 */
+	if (f54->query.has_sense_frequency_control == 0)
+		offset -= 1;
+
+	/* query 13 */
+	if (f54->query.has_query13) {
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				f54->query_base_addr + offset,
+				f54->query_13.data,
+				sizeof(f54->query_13.data));
+		if (retval < 0)
+			return retval;
+		offset += 1;
+	}
+
+	/* query 14 */
+	if ((f54->query.has_query13) && (f54->query_13.has_ctrl87))
+		offset += 1;
+
+	/* query 15 */
+	if (f54->query.has_query15) {
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				f54->query_base_addr + offset,
+				f54->query_15.data,
+				sizeof(f54->query_15.data));
+		if (retval < 0)
+			return retval;
+		offset += 1;
+	}
+
+	/* query 16 */
+	retval = synaptics_rmi4_reg_read(rmi4_data,
+			f54->query_base_addr + offset,
+			f54->query_16.data,
+			sizeof(f54->query_16.data));
+	if (retval < 0)
+		return retval;
+	offset += 1;
+
+	/* query 17 */
+	if (f54->query_16.has_query17)
+		offset += 1;
+
+	/* query 18 */
+	if (f54->query_16.has_ctrl94_query18)
+		offset += 1;
+
+	/* query 19 */
+	if (f54->query_16.has_ctrl95_query19)
+		offset += 1;
+
+	/* query 20 */
+	if ((f54->query.has_query15) && (f54->query_15.has_query20))
+		offset += 1;
+
+	/* query 21 */
+	retval = synaptics_rmi4_reg_read(rmi4_data,
+			f54->query_base_addr + offset,
+			f54->query_21.data,
+			sizeof(f54->query_21.data));
+	if (retval < 0)
+		return retval;
+
+	return 0;
 }
 
 static void test_f54_set_regs(struct synaptics_rmi4_data *rmi4_data,
@@ -1857,10 +1996,7 @@ static int synaptics_rmi4_test_init(struct synaptics_rmi4_data *rmi4_data)
 	if (retval < 0)
 		goto exit_free_mem;
 
-	retval = synaptics_rmi4_reg_read(rmi4_data,
-			f54->query_base_addr,
-			f54->query.data,
-			sizeof(f54->query.data));
+	retval = test_set_queries();
 	if (retval < 0) {
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to read f54 query registers\n",
