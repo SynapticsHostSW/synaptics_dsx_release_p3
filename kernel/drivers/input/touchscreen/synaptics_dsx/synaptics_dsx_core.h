@@ -248,7 +248,6 @@ struct synaptics_rmi4_data {
 	bool fingers_on_2d;
 	bool sensor_sleep;
 	bool stay_awake;
-	bool staying_awake;
 	int (*irq_enable)(struct synaptics_rmi4_data *rmi4_data, bool enable);
 	int (*reset_device)(struct synaptics_rmi4_data *rmi4_data);
 };

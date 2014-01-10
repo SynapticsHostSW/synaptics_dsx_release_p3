@@ -2846,12 +2846,8 @@ static void synaptics_rmi4_early_suspend(struct early_suspend *h)
 			container_of(h, struct synaptics_rmi4_data,
 			early_suspend);
 
-	if (rmi4_data->stay_awake) {
-		rmi4_data->staying_awake = true;
+	if (rmi4_data->stay_awake)
 		return;
-	} else {
-		rmi4_data->staying_awake = false;
-	}
 
 	synaptics_rmi4_irq_enable(rmi4_data, false);
 	synaptics_rmi4_sensor_sleep(rmi4_data);
@@ -2887,7 +2883,7 @@ static void synaptics_rmi4_late_resume(struct early_suspend *h)
 			container_of(h, struct synaptics_rmi4_data,
 			early_suspend);
 
-	if (rmi4_data->staying_awake)
+	if (rmi4_data->stay_awake)
 		return;
 
 	if (rmi4_data->full_pm_cycle)
@@ -2925,7 +2921,7 @@ static int synaptics_rmi4_suspend(struct device *dev)
 	struct synaptics_rmi4_exp_fhandler *exp_fhandler;
 	struct synaptics_rmi4_data *rmi4_data = dev_get_drvdata(dev);
 
-	if (rmi4_data->staying_awake)
+	if (rmi4_data->stay_awake)
 		return 0;
 
 	if (!rmi4_data->sensor_sleep) {
@@ -2965,7 +2961,7 @@ static int synaptics_rmi4_resume(struct device *dev)
 	const struct synaptics_dsx_board_data *bdata =
 			rmi4_data->hw_if->board_data;
 
-	if (rmi4_data->staying_awake)
+	if (rmi4_data->stay_awake)
 		return 0;
 
 	if (rmi4_data->regulator) {
