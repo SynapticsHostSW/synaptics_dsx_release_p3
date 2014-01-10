@@ -72,6 +72,7 @@
 #define TM1940 (1) /* I2C */
 #define TM2448 (2) /* I2C */
 #define TM2074 (3) /* SPI */
+#define TM2780 (4) /* HID/I2C (RMI mode) */
 #define SYNAPTICS_MODULE TM2448
 
 #define PANDA_RAMCONSOLE_START	(PLAT_PHYS_OFFSET + SZ_512M)
@@ -113,6 +114,7 @@ static int synaptics_gpio_setup(int gpio, bool configure, int dir, int state);
 #define DSX_RESET_ON_STATE 0
 #define DSX_RESET_DELAY_MS 100
 #define DSX_RESET_ACTIVE_MS 20
+#define DSX_IRQ_ON_STATE 0
 #define DSX_IRQ_FLAGS IRQF_TRIGGER_FALLING
 static unsigned char regulator_name[] = "";
 static unsigned char cap_button_codes[] =
@@ -130,6 +132,7 @@ static unsigned char cap_button_codes[] =
 #define DSX_RESET_ON_STATE 0
 #define DSX_RESET_DELAY_MS 100
 #define DSX_RESET_ACTIVE_MS 20
+#define DSX_IRQ_ON_STATE 0
 #define DSX_IRQ_FLAGS IRQF_TRIGGER_FALLING
 static unsigned char regulator_name[] = "";
 static unsigned char cap_button_codes[] =
@@ -153,6 +156,28 @@ static unsigned char cap_button_codes[] =
 #define DSX_RESET_ON_STATE 0
 #define DSX_RESET_DELAY_MS 100
 #define DSX_RESET_ACTIVE_MS 20
+#define DSX_IRQ_ON_STATE 0
+#define DSX_IRQ_FLAGS IRQF_TRIGGER_FALLING
+static unsigned char regulator_name[] = "";
+static unsigned char cap_button_codes[] =
+		{};
+
+#elif (SYNAPTICS_MODULE == TM2780)
+#define SYNAPTICS_I2C_DEVICE
+#define SYNAPTICS_HID_DEVICE
+#define DSX_HID_DEVICE_DESCRIPTOR_ADDR 0x0020
+#define DSX_I2C_ADDR 0x2c
+#define DSX_ATTN_GPIO 39
+#define DSX_ATTN_MUX_NAME "gpmc_ad15.gpio_39"
+#define DSX_POWER_GPIO 140
+#define DSX_POWER_MUX_NAME "mcspi1_cs3.gpio_140"
+#define DSX_POWER_ON_STATE 1
+#define DSX_POWER_DELAY_MS 160
+#define DSX_RESET_GPIO -1
+#define DSX_RESET_ON_STATE 0
+#define DSX_RESET_DELAY_MS 100
+#define DSX_RESET_ACTIVE_MS 20
+#define DSX_IRQ_ON_STATE 0
 #define DSX_IRQ_FLAGS IRQF_TRIGGER_FALLING
 static unsigned char regulator_name[] = "";
 static unsigned char cap_button_codes[] =
@@ -166,6 +191,7 @@ static struct synaptics_dsx_cap_button_map cap_button_map = {
 
 static struct synaptics_dsx_board_data dsx_board_data = {
 	.irq_gpio = DSX_ATTN_GPIO,
+	.irq_on_state = DSX_IRQ_ON_STATE,
 	.irq_flags = DSX_IRQ_FLAGS,
 	.power_gpio = DSX_POWER_GPIO,
 	.power_on_state = DSX_POWER_ON_STATE,
@@ -180,6 +206,9 @@ static struct synaptics_dsx_board_data dsx_board_data = {
 #ifdef SYNAPTICS_SPI_DEVICE
 	.byte_delay_us = DSX_SPI_BYTE_DELAY_US,
 	.block_delay_us = DSX_SPI_BLOCK_DELAY_US,
+#endif
+#ifdef SYNAPTICS_HID_DEVICE
+	.device_descriptor_addr = DSX_HID_DEVICE_DESCRIPTOR_ADDR,
 #endif
 };
 

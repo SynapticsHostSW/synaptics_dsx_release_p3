@@ -39,11 +39,13 @@ struct synaptics_dsx_cap_button_map {
  * @x_flip: x flip flag
  * @y_flip: y flip flag
  * @irq_gpio: attention interrupt gpio
+ * @irq_on_state: attention interrupt active state
  * @power_gpio: power switch gpio
  * @power_on_state: power switch active state
  * @reset_gpio: reset gpio
  * @reset_on_state: reset active state
  * @irq_flags: irq flags
+ * @device_descriptor_addr: HID device descriptor address
  * @panel_x: x-axis resolution of display panel
  * @panel_y: y-axis resolution of display panel
  * @power_delay_ms: delay time to wait after power-on
@@ -60,11 +62,13 @@ struct synaptics_dsx_board_data {
 	bool y_flip;
 	bool swap_axes;
 	int irq_gpio;
+	int irq_on_state;
 	int power_gpio;
 	int power_on_state;
 	int reset_gpio;
 	int reset_on_state;
 	unsigned long irq_flags;
+	unsigned short device_descriptor_addr;
 	unsigned int panel_x;
 	unsigned int panel_y;
 	unsigned int power_delay_ms;

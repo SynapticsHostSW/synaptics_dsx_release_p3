@@ -1098,9 +1098,15 @@ static void synaptics_rmi4_sensor_report(struct synaptics_rmi4_data *rmi4_data)
 static irqreturn_t synaptics_rmi4_irq(int irq, void *data)
 {
 	struct synaptics_rmi4_data *rmi4_data = data;
+	const struct synaptics_dsx_board_data *bdata =
+			rmi4_data->hw_if->board_data;
+
+	if (gpio_get_value(bdata->irq_gpio) != bdata->irq_on_state)
+		goto exit;
 
 	synaptics_rmi4_sensor_report(rmi4_data);
 
+exit:
 	return IRQ_HANDLED;
 }
 
@@ -1693,19 +1699,8 @@ static int synaptics_rmi4_check_status(struct synaptics_rmi4_data *rmi4_data,
 {
 	int retval;
 	int timeout = CHECK_STATUS_TIMEOUT_MS;
-	unsigned char command = 0x01;
 	unsigned char intr_status;
 	struct synaptics_rmi4_f01_device_status status;
-
-	/* Do a device reset first */
-	retval = synaptics_rmi4_reg_write(rmi4_data,
-			rmi4_data->f01_cmd_base_addr,
-			&command,
-			sizeof(command));
-	if (retval < 0)
-		return retval;
-
-	msleep(rmi4_data->hw_if->board_data->reset_delay_ms);
 
 	retval = synaptics_rmi4_reg_read(rmi4_data,
 			rmi4_data->f01_data_base_addr,
@@ -2278,6 +2273,26 @@ static int synaptics_rmi4_free_fingers(struct synaptics_rmi4_data *rmi4_data)
 	return 0;
 }
 
+static int synaptics_rmi4_sw_reset(struct synaptics_rmi4_data *rmi4_data)
+{
+	int retval;
+	unsigned char command = 0x01;
+
+	retval = synaptics_rmi4_reg_write(rmi4_data,
+			rmi4_data->f01_cmd_base_addr,
+			&command,
+			sizeof(command));
+	if (retval < 0)
+		return retval;
+
+	msleep(rmi4_data->hw_if->board_data->reset_delay_ms);
+
+	if (rmi4_data->hw_if->ui_hw_init)
+		rmi4_data->hw_if->ui_hw_init(rmi4_data);
+
+	return 0;
+}
+
 static int synaptics_rmi4_reinit_device(struct synaptics_rmi4_data *rmi4_data)
 {
 	int retval;
@@ -2325,26 +2340,20 @@ static int synaptics_rmi4_reset_device(struct synaptics_rmi4_data *rmi4_data)
 {
 	int retval;
 	int temp;
-	unsigned char command = 0x01;
 	struct synaptics_rmi4_exp_fhandler *exp_fhandler;
 
 	mutex_lock(&(rmi4_data->rmi4_reset_mutex));
 
 	synaptics_rmi4_irq_enable(rmi4_data, false);
 
-	retval = synaptics_rmi4_reg_write(rmi4_data,
-			rmi4_data->f01_cmd_base_addr,
-			&command,
-			sizeof(command));
+	retval = synaptics_rmi4_sw_reset(rmi4_data);
 	if (retval < 0) {
 		dev_err(rmi4_data->pdev->dev.parent,
-				"%s: Failed to issue reset command, error = %d\n",
-				__func__, retval);
+				"%s: Failed to issue reset command\n",
+				__func__);
 		mutex_unlock(&(rmi4_data->rmi4_reset_mutex));
 		return retval;
 	}
-
-	msleep(rmi4_data->hw_if->board_data->reset_delay_ms);
 
 	synaptics_rmi4_free_fingers(rmi4_data);
 
@@ -2562,6 +2571,9 @@ static int __devinit synaptics_rmi4_probe(struct platform_device *pdev)
 			goto err_set_gpio;
 		}
 	}
+
+	if (hw_if->ui_hw_init)
+		hw_if->ui_hw_init(rmi4_data);
 
 	retval = synaptics_rmi4_set_input_dev(rmi4_data);
 	if (retval < 0) {
@@ -2960,6 +2972,8 @@ static int synaptics_rmi4_resume(struct device *dev)
 		regulator_enable(rmi4_data->regulator);
 		msleep(bdata->power_delay_ms);
 		rmi4_data->current_page = MASK_8BIT;
+		if (rmi4_data->hw_if->ui_hw_init)
+			rmi4_data->hw_if->ui_hw_init(rmi4_data);
 	}
 
 	synaptics_rmi4_sensor_wake(rmi4_data);

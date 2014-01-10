@@ -93,11 +93,6 @@ enum exp_fn {
 	RMI_LAST,
 };
 
-struct synaptics_dsx_hw_interface {
-	const struct synaptics_dsx_board_data *board_data;
-	const struct synaptics_dsx_bus_access *bus_access;
-};
-
 /*
  * struct synaptics_rmi4_fn_desc - function descriptor fields in PDT
  * @query_base_addr: base address for query registers
@@ -264,6 +259,13 @@ struct synaptics_dsx_bus_access {
 		unsigned char *data, unsigned short length);
 	int (*write)(struct synaptics_rmi4_data *rmi4_data, unsigned short addr,
 		unsigned char *data, unsigned short length);
+};
+
+struct synaptics_dsx_hw_interface {
+	const struct synaptics_dsx_board_data *board_data;
+	const struct synaptics_dsx_bus_access *bus_access;
+	void (*bl_hw_init)(struct synaptics_rmi4_data *rmi4_data);
+	void (*ui_hw_init)(struct synaptics_rmi4_data *rmi4_data);
 };
 
 struct synaptics_rmi4_exp_fn {

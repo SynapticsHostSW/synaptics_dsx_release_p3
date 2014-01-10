@@ -92,6 +92,8 @@
 #define MIN_SLEEP_TIME_US 50
 #define MAX_SLEEP_TIME_US 100
 
+#define ENTER_FLASH_PROG_WAIT_MS 20
+
 static int fwu_do_reflash(void);
 static int fwu_do_write_config(void);
 
@@ -957,6 +959,9 @@ static int fwu_enter_flash_prog(void)
 		return -EINVAL;
 	}
 
+	if (rmi4_data->hw_if->bl_hw_init)
+		rmi4_data->hw_if->bl_hw_init(rmi4_data);
+
 	retval = fwu_scan_pdt();
 	if (retval < 0)
 		return retval;
@@ -1000,6 +1005,8 @@ static int fwu_enter_flash_prog(void)
 				__func__);
 		return retval;
 	}
+
+	msleep(ENTER_FLASH_PROG_WAIT_MS);
 
 	return retval;
 }

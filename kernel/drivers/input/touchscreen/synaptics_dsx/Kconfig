@@ -21,11 +21,14 @@ config TOUCHSCREEN_SYNAPTICS_DSX_I2C
 config TOUCHSCREEN_SYNAPTICS_DSX_SPI
 	bool "SPI"
 	depends on SPI_MASTER
+config TOUCHSCREEN_SYNAPTICS_DSX_RMI_HID_I2C
+	bool "HID/I2C (RMI MODE)"
+	depends on I2C
 endchoice
 
 config TOUCHSCREEN_SYNAPTICS_DSX_CORE
 	tristate "Synaptics DSX core driver module"
-	depends on TOUCHSCREEN_SYNAPTICS_DSX_I2C || TOUCHSCREEN_SYNAPTICS_DSX_SPI
+	depends on I2C || SPI_MASTER
 	help
 	  Say Y here to enable basic touch reporting functionalities.
 
