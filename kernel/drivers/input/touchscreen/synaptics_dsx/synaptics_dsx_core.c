@@ -2176,13 +2176,8 @@ err_input_device:
 static int synaptics_rmi4_set_gpio(struct synaptics_rmi4_data *rmi4_data)
 {
 	int retval;
-	int power_on;
-	int reset_on;
 	const struct synaptics_dsx_board_data *bdata =
 			rmi4_data->hw_if->board_data;
-
-	power_on = bdata->power_on_state;
-	reset_on = bdata->reset_on_state;
 
 	retval = bdata->gpio_config(
 			bdata->irq_gpio,
@@ -2197,7 +2192,7 @@ static int synaptics_rmi4_set_gpio(struct synaptics_rmi4_data *rmi4_data)
 	if (bdata->power_gpio >= 0) {
 		retval = bdata->gpio_config(
 				bdata->power_gpio,
-				true, 1, !power_on);
+				true, 1, !bdata->power_on_state);
 		if (retval < 0) {
 			dev_err(rmi4_data->pdev->dev.parent,
 					"%s: Failed to configure power GPIO\n",
@@ -2209,7 +2204,7 @@ static int synaptics_rmi4_set_gpio(struct synaptics_rmi4_data *rmi4_data)
 	if (bdata->reset_gpio >= 0) {
 		retval = bdata->gpio_config(
 				bdata->reset_gpio,
-				true, 1, !reset_on);
+				true, 1, !bdata->reset_on_state);
 		if (retval < 0) {
 			dev_err(rmi4_data->pdev->dev.parent,
 					"%s: Failed to configure reset GPIO\n",
@@ -2219,14 +2214,14 @@ static int synaptics_rmi4_set_gpio(struct synaptics_rmi4_data *rmi4_data)
 	}
 
 	if (bdata->power_gpio >= 0) {
-		gpio_set_value(bdata->power_gpio, power_on);
+		gpio_set_value(bdata->power_gpio, bdata->power_on_state);
 		msleep(bdata->power_delay_ms);
 	}
 
 	if (bdata->reset_gpio >= 0) {
-		gpio_set_value(bdata->reset_gpio, reset_on);
+		gpio_set_value(bdata->reset_gpio, bdata->reset_on_state);
 		msleep(bdata->reset_active_ms);
-		gpio_set_value(bdata->reset_gpio, !reset_on);
+		gpio_set_value(bdata->reset_gpio, !bdata->reset_on_state);
 		msleep(bdata->reset_delay_ms);
 	}
 
