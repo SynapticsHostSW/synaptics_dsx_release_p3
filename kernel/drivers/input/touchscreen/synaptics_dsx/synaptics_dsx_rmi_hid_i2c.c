@@ -37,15 +37,41 @@
 #define REPORT_ID_READ_DATA 0x0b
 #define REPORT_ID_SET_RMI_MODE 0x0f
 
+#define PREFIX_USAGE_PAGE_1BYTE 0x05
+#define PREFIX_USAGE_PAGE_2BYTES 0x06
+#define PREFIX_USAGE 0x09
+#define PREFIX_REPORT_ID 0x85
+#define PREFIX_REPORT_COUNT_1BYTE 0x95
+#define PREFIX_REPORT_COUNT_2BYTES 0x96
+
+#define USAGE_GET_BLOB 0xc5
+#define USAGE_WRITE 0x02
+#define USAGE_READ_ADDRESS 0x03
+#define USAGE_READ_DATA 0x04
+#define USAGE_SET_MODE 0x06
+
+#define VENDOR_DEFINED_PAGE 0xff00
+
 #define FEATURE_REPORT_TYPE 0x03
 
-#define BLOB_REPORT_SIZE (256 + 3)
+#define BLOB_REPORT_SIZE 256
 
 #define POWER_COMMAND 0x08
 #define RESET_COMMAND 0x01
 
 #define FINGER_MODE 0x00
 #define RMI_MODE 0x02
+
+struct hid_report_info {
+	unsigned char get_blob_id;
+	unsigned char write_id;
+	unsigned char read_addr_id;
+	unsigned char read_data_id;
+	unsigned char set_mode_id;
+	unsigned int blob_size;
+};
+
+static struct hid_report_info hid_report;
 
 struct hid_device_descriptor {
 	unsigned short device_descriptor_length;
@@ -153,6 +179,127 @@ static int generic_write(struct i2c_client *client, unsigned short length)
 	return retval;
 }
 
+static void traverse_report_descriptor(unsigned int *index)
+{
+	unsigned char size;
+	unsigned char *buf = buffer.read;
+
+	size = buf[*index] & MASK_2BIT;
+	switch (size) {
+	case 0: /* 0 bytes */
+		*index += 1;
+		break;
+	case 1: /* 1 byte */
+		*index += 2;
+		break;
+	case 2: /* 2 bytes */
+		*index += 3;
+		break;
+	case 3: /* 4 bytes */
+		*index += 5;
+		break;
+	default:
+		break;
+	}
+
+	return;
+}
+
+static void find_blob_size(unsigned int index)
+{
+	unsigned int ii = index;
+	unsigned char *buf = buffer.read;
+
+	while (ii < hid_dd.report_descriptor_length) {
+		if (buf[ii] == PREFIX_REPORT_COUNT_1BYTE) {
+			hid_report.blob_size = buf[ii + 1];
+			return;
+		} else if (buf[ii] == PREFIX_REPORT_COUNT_2BYTES) {
+			hid_report.blob_size = buf[ii + 1] | (buf[ii + 2] << 8);
+			return;
+		}
+		traverse_report_descriptor(&ii);
+	}
+
+	return;
+}
+
+static void find_reports(unsigned int index)
+{
+	unsigned int ii = index;
+	unsigned char *buf = buffer.read;
+	static unsigned int report_id_index;
+	static unsigned char report_id;
+	static unsigned short usage_page;
+
+	if (buf[ii] == PREFIX_REPORT_ID) {
+		report_id = buf[ii + 1];
+		report_id_index = ii;
+		return;
+	}
+
+	if (buf[ii] == PREFIX_USAGE_PAGE_1BYTE) {
+		usage_page = buf[ii + 1];
+		return;
+	} else if (buf[ii] == PREFIX_USAGE_PAGE_2BYTES) {
+		usage_page = buf[ii + 1] | (buf[ii + 2] << 8);
+		return;
+	}
+
+	if ((usage_page == VENDOR_DEFINED_PAGE) && (buf[ii] == PREFIX_USAGE)) {
+		switch (buf[ii + 1]) {
+		case USAGE_GET_BLOB:
+			hid_report.get_blob_id = report_id;
+			find_blob_size(report_id_index);
+			break;
+		case USAGE_WRITE:
+			hid_report.write_id = report_id;
+			break;
+		case USAGE_READ_ADDRESS:
+			hid_report.read_addr_id = report_id;
+			break;
+		case USAGE_READ_DATA:
+			hid_report.read_data_id = report_id;
+			break;
+		case USAGE_SET_MODE:
+			hid_report.set_mode_id = report_id;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return;
+}
+
+static void parse_report_descriptor(struct synaptics_rmi4_data *rmi4_data)
+{
+	unsigned int ii = 0;
+	unsigned char *buf;
+	struct i2c_client *i2c = to_i2c_client(rmi4_data->pdev->dev.parent);
+
+	buffer.write[0] = hid_dd.report_descriptor_index & MASK_8BIT;
+	buffer.write[1] = hid_dd.report_descriptor_index >> 8;
+	generic_write(i2c, 2);
+	generic_read(i2c, hid_dd.report_descriptor_length);
+
+	buf = buffer.read;
+
+	hid_report.get_blob_id = REPORT_ID_GET_BLOB;
+	hid_report.write_id = REPORT_ID_WRITE;
+	hid_report.read_addr_id = REPORT_ID_READ_ADDRESS;
+	hid_report.read_data_id = REPORT_ID_READ_DATA;
+	hid_report.set_mode_id = REPORT_ID_SET_RMI_MODE;
+	hid_report.blob_size = BLOB_REPORT_SIZE;
+
+	while (ii < hid_dd.report_descriptor_length) {
+		find_reports(ii);
+		traverse_report_descriptor(&ii);
+	}
+
+	return;
+}
+
 static void switch_to_rmi(struct synaptics_rmi4_data *rmi4_data)
 {
 	struct i2c_client *i2c = to_i2c_client(rmi4_data->pdev->dev.parent);
@@ -164,14 +311,14 @@ static void switch_to_rmi(struct synaptics_rmi4_data *rmi4_data)
 	/* set rmi mode */
 	buffer.write[0] = hid_dd.command_register_index & MASK_8BIT;
 	buffer.write[1] = hid_dd.command_register_index >> 8;
-	buffer.write[2] = (FEATURE_REPORT_TYPE << 4) | REPORT_ID_SET_RMI_MODE;
+	buffer.write[2] = (FEATURE_REPORT_TYPE << 4) | hid_report.set_mode_id;
 	buffer.write[3] = 0x03;
-	buffer.write[4] = REPORT_ID_SET_RMI_MODE;
+	buffer.write[4] = hid_report.set_mode_id;
 	buffer.write[5] = hid_dd.data_register_index & MASK_8BIT;
 	buffer.write[6] = hid_dd.data_register_index >> 8;
 	buffer.write[7] = 0x04;
 	buffer.write[8] = 0x00;
-	buffer.write[9] = REPORT_ID_SET_RMI_MODE;
+	buffer.write[9] = hid_report.set_mode_id;
 	buffer.write[10] = RMI_MODE;
 
 	generic_write(i2c, 11);
@@ -198,6 +345,8 @@ static void hid_i2c_init(struct synaptics_rmi4_data *rmi4_data)
 	generic_read(i2c, sizeof(hid_dd));
 	memcpy((unsigned char *)&hid_dd, buffer.read, sizeof(hid_dd));
 
+	parse_report_descriptor(rmi4_data);
+
 	/* set power */
 	buffer.write[0] = hid_dd.command_register_index & MASK_8BIT;
 	buffer.write[1] = hid_dd.command_register_index >> 8;
@@ -220,14 +369,14 @@ static void hid_i2c_init(struct synaptics_rmi4_data *rmi4_data)
 	/* get blob */
 	buffer.write[0] = hid_dd.command_register_index & MASK_8BIT;
 	buffer.write[1] = hid_dd.command_register_index >> 8;
-	buffer.write[2] = (FEATURE_REPORT_TYPE << 4) | REPORT_ID_GET_BLOB;
+	buffer.write[2] = (FEATURE_REPORT_TYPE << 4) | hid_report.get_blob_id;
 	buffer.write[3] = 0x02;
 	buffer.write[4] = hid_dd.data_register_index & MASK_8BIT;
 	buffer.write[5] = hid_dd.data_register_index >> 8;
 
 	generic_write(i2c, 6);
 	msleep(20);
-	generic_read(i2c, BLOB_REPORT_SIZE);
+	generic_read(i2c, hid_report.blob_size + 3);
 
 	mutex_unlock(&rmi4_data->rmi4_io_ctrl_mutex);
 
@@ -267,7 +416,7 @@ recover:
 	buffer.write[1] = hid_dd.output_register_index >> 8;
 	buffer.write[2] = hid_dd.output_report_max_length & MASK_8BIT;
 	buffer.write[3] = hid_dd.output_report_max_length >> 8;
-	buffer.write[4] = REPORT_ID_READ_ADDRESS;
+	buffer.write[4] = hid_report.read_addr_id;
 	buffer.write[5] = 0x00;
 	buffer.write[6] = addr & MASK_8BIT;
 	buffer.write[7] = addr >> 8;
@@ -345,7 +494,7 @@ recover:
 	buffer.write[1] = hid_dd.output_register_index >> 8;
 	buffer.write[2] = hid_dd.output_report_max_length & MASK_8BIT;
 	buffer.write[3] = hid_dd.output_report_max_length >> 8;
-	buffer.write[4] = REPORT_ID_WRITE;
+	buffer.write[4] = hid_report.write_id;
 	buffer.write[5] = 0x00;
 	buffer.write[6] = addr & MASK_8BIT;
 	buffer.write[7] = addr >> 8;
