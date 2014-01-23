@@ -263,8 +263,8 @@ struct synaptics_dsx_bus_access {
 struct synaptics_dsx_hw_interface {
 	const struct synaptics_dsx_board_data *board_data;
 	const struct synaptics_dsx_bus_access *bus_access;
-	void (*bl_hw_init)(struct synaptics_rmi4_data *rmi4_data);
-	void (*ui_hw_init)(struct synaptics_rmi4_data *rmi4_data);
+	int (*bl_hw_init)(struct synaptics_rmi4_data *rmi4_data);
+	int (*ui_hw_init)(struct synaptics_rmi4_data *rmi4_data);
 };
 
 struct synaptics_rmi4_exp_fn {

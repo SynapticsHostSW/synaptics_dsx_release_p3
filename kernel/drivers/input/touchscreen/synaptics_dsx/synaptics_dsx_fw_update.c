@@ -959,8 +959,11 @@ static int fwu_enter_flash_prog(void)
 		return -EINVAL;
 	}
 
-	if (rmi4_data->hw_if->bl_hw_init)
-		rmi4_data->hw_if->bl_hw_init(rmi4_data);
+	if (rmi4_data->hw_if->bl_hw_init) {
+		retval = rmi4_data->hw_if->bl_hw_init(rmi4_data);
+		if (retval < 0)
+			return retval;
+	}
 
 	retval = fwu_scan_pdt();
 	if (retval < 0)

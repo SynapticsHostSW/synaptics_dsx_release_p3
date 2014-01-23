@@ -2282,8 +2282,11 @@ static int synaptics_rmi4_sw_reset(struct synaptics_rmi4_data *rmi4_data)
 
 	msleep(rmi4_data->hw_if->board_data->reset_delay_ms);
 
-	if (rmi4_data->hw_if->ui_hw_init)
-		rmi4_data->hw_if->ui_hw_init(rmi4_data);
+	if (rmi4_data->hw_if->ui_hw_init) {
+		retval = rmi4_data->hw_if->ui_hw_init(rmi4_data);
+		if (retval < 0)
+			return retval;
+	}
 
 	return 0;
 }
@@ -2567,8 +2570,15 @@ static int __devinit synaptics_rmi4_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (hw_if->ui_hw_init)
-		hw_if->ui_hw_init(rmi4_data);
+	if (hw_if->ui_hw_init) {
+		retval = hw_if->ui_hw_init(rmi4_data);
+		if (retval < 0) {
+			dev_err(&pdev->dev,
+					"%s: Failed to initialize hardware interface\n",
+					__func__);
+			goto err_ui_hw_init;
+		}
+	}
 
 	retval = synaptics_rmi4_set_input_dev(rmi4_data);
 	if (retval < 0) {
@@ -2658,6 +2668,7 @@ err_set_input_dev:
 		}
 	}
 
+err_ui_hw_init:
 err_set_gpio:
 	if (rmi4_data->regulator) {
 		regulator_disable(rmi4_data->regulator);

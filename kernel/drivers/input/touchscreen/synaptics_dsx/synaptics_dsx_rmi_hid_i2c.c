@@ -154,8 +154,6 @@ static int generic_read(struct i2c_client *client, unsigned short length)
 	msg[0].buf = buffer.read;
 
 	retval = do_i2c_transfer(client, msg);
-	if (retval == 0)
-		retval = length;
 
 	return retval;
 }
@@ -173,8 +171,6 @@ static int generic_write(struct i2c_client *client, unsigned short length)
 	};
 
 	retval = do_i2c_transfer(client, msg);
-	if (retval == 0)
-		retval = length;
 
 	return retval;
 }
@@ -272,16 +268,21 @@ static void find_reports(unsigned int index)
 	return;
 }
 
-static void parse_report_descriptor(struct synaptics_rmi4_data *rmi4_data)
+static int parse_report_descriptor(struct synaptics_rmi4_data *rmi4_data)
 {
+	int retval;
 	unsigned int ii = 0;
 	unsigned char *buf;
 	struct i2c_client *i2c = to_i2c_client(rmi4_data->pdev->dev.parent);
 
 	buffer.write[0] = hid_dd.report_descriptor_index & MASK_8BIT;
 	buffer.write[1] = hid_dd.report_descriptor_index >> 8;
-	generic_write(i2c, 2);
-	generic_read(i2c, hid_dd.report_descriptor_length);
+	retval = generic_write(i2c, 2);
+	if (retval < 0)
+		return retval;
+	retval = generic_read(i2c, hid_dd.report_descriptor_length);
+	if (retval < 0)
+		return retval;
 
 	buf = buffer.read;
 
@@ -297,11 +298,12 @@ static void parse_report_descriptor(struct synaptics_rmi4_data *rmi4_data)
 		traverse_report_descriptor(&ii);
 	}
 
-	return;
+	return 0;
 }
 
-static void switch_to_rmi(struct synaptics_rmi4_data *rmi4_data)
+static int switch_to_rmi(struct synaptics_rmi4_data *rmi4_data)
 {
+	int retval;
 	struct i2c_client *i2c = to_i2c_client(rmi4_data->pdev->dev.parent);
 
 	mutex_lock(&rmi4_data->rmi4_io_ctrl_mutex);
@@ -321,15 +323,16 @@ static void switch_to_rmi(struct synaptics_rmi4_data *rmi4_data)
 	buffer.write[9] = hid_report.set_mode_id;
 	buffer.write[10] = RMI_MODE;
 
-	generic_write(i2c, 11);
+	retval = generic_write(i2c, 11);
 
 	mutex_unlock(&rmi4_data->rmi4_io_ctrl_mutex);
 
-	return;
+	return retval;
 }
 
-static void hid_i2c_init(struct synaptics_rmi4_data *rmi4_data)
+static int hid_i2c_init(struct synaptics_rmi4_data *rmi4_data)
 {
+	int retval;
 	struct i2c_client *i2c = to_i2c_client(rmi4_data->pdev->dev.parent);
 	const struct synaptics_dsx_board_data *bdata =
 			rmi4_data->hw_if->board_data;
@@ -341,30 +344,42 @@ static void hid_i2c_init(struct synaptics_rmi4_data *rmi4_data)
 	/* read device descriptor */
 	buffer.write[0] = bdata->device_descriptor_addr & MASK_8BIT;
 	buffer.write[1] = bdata->device_descriptor_addr >> 8;
-	generic_write(i2c, 2);
-	generic_read(i2c, sizeof(hid_dd));
+	retval = generic_write(i2c, 2);
+	if (retval < 0)
+		goto exit;
+	retval = generic_read(i2c, sizeof(hid_dd));
+	if (retval < 0)
+		goto exit;
 	memcpy((unsigned char *)&hid_dd, buffer.read, sizeof(hid_dd));
 
-	parse_report_descriptor(rmi4_data);
+	retval = parse_report_descriptor(rmi4_data);
+	if (retval < 0)
+		goto exit;
 
 	/* set power */
 	buffer.write[0] = hid_dd.command_register_index & MASK_8BIT;
 	buffer.write[1] = hid_dd.command_register_index >> 8;
 	buffer.write[2] = 0x00;
 	buffer.write[3] = POWER_COMMAND;
-	generic_write(i2c, 4);
+	retval = generic_write(i2c, 4);
+	if (retval < 0)
+		goto exit;
 
 	/* reset */
 	buffer.write[0] = hid_dd.command_register_index & MASK_8BIT;
 	buffer.write[1] = hid_dd.command_register_index >> 8;
 	buffer.write[2] = 0x00;
 	buffer.write[3] = RESET_COMMAND;
-	generic_write(i2c, 4);
+	retval = generic_write(i2c, 4);
+	if (retval < 0)
+		goto exit;
 
 	while (gpio_get_value(bdata->irq_gpio))
 		msleep(20);
 
-	generic_read(i2c, hid_dd.input_report_max_length);
+	retval = generic_read(i2c, hid_dd.input_report_max_length);
+	if (retval < 0)
+		goto exit;
 
 	/* get blob */
 	buffer.write[0] = hid_dd.command_register_index & MASK_8BIT;
@@ -374,15 +389,29 @@ static void hid_i2c_init(struct synaptics_rmi4_data *rmi4_data)
 	buffer.write[4] = hid_dd.data_register_index & MASK_8BIT;
 	buffer.write[5] = hid_dd.data_register_index >> 8;
 
-	generic_write(i2c, 6);
-	msleep(20);
-	generic_read(i2c, hid_report.blob_size + 3);
+	retval = generic_write(i2c, 6);
+	if (retval < 0)
+		goto exit;
 
+	msleep(20);
+
+	retval = generic_read(i2c, hid_report.blob_size + 3);
+	if (retval < 0)
+		goto exit;
+
+exit:
 	mutex_unlock(&rmi4_data->rmi4_io_ctrl_mutex);
 
-	switch_to_rmi(rmi4_data);
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to initialize HID/I2C interface\n",
+				__func__);
+		return retval;
+	}
 
-	return;
+	retval = switch_to_rmi(rmi4_data);
+
+	return retval;
 }
 
 static int synaptics_rmi4_i2c_read(struct synaptics_rmi4_data *rmi4_data,
@@ -458,8 +487,9 @@ exit:
 
 	if ((retval != length) && (recover == 1)) {
 		recover = 0;
-		hid_i2c_init(rmi4_data);
-		goto recover;
+		retval = hid_i2c_init(rmi4_data);
+		if (retval == 0)
+			goto recover;
 	}
 
 	return retval;
@@ -510,8 +540,9 @@ recover:
 
 	if ((retval != length) && (recover == 1)) {
 		recover = 0;
-		hid_i2c_init(rmi4_data);
-		goto recover;
+		retval = hid_i2c_init(rmi4_data);
+		if (retval == 0)
+			goto recover;
 	}
 
 	return retval;
