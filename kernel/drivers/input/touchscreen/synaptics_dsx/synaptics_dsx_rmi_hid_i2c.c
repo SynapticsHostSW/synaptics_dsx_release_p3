@@ -50,14 +50,16 @@
 #define USAGE_READ_DATA 0x04
 #define USAGE_SET_MODE 0x06
 
-#define VENDOR_DEFINED_PAGE 0xff00
-
 #define FEATURE_REPORT_TYPE 0x03
+
+#define VENDOR_DEFINED_PAGE 0xff00
 
 #define BLOB_REPORT_SIZE 256
 
-#define POWER_COMMAND 0x08
 #define RESET_COMMAND 0x01
+#define GET_REPORT_COMMAND 0x02
+#define SET_REPORT_COMMAND 0x03
+#define SET_POWER_COMMAND 0x08
 
 #define FINGER_MODE 0x00
 #define RMI_MODE 0x02
@@ -314,7 +316,7 @@ static int switch_to_rmi(struct synaptics_rmi4_data *rmi4_data)
 	buffer.write[0] = hid_dd.command_register_index & MASK_8BIT;
 	buffer.write[1] = hid_dd.command_register_index >> 8;
 	buffer.write[2] = (FEATURE_REPORT_TYPE << 4) | hid_report.set_mode_id;
-	buffer.write[3] = 0x03;
+	buffer.write[3] = SET_REPORT_COMMAND;
 	buffer.write[4] = hid_report.set_mode_id;
 	buffer.write[5] = hid_dd.data_register_index & MASK_8BIT;
 	buffer.write[6] = hid_dd.data_register_index >> 8;
@@ -325,6 +327,53 @@ static int switch_to_rmi(struct synaptics_rmi4_data *rmi4_data)
 
 	retval = generic_write(i2c, 11);
 
+	mutex_unlock(&rmi4_data->rmi4_io_ctrl_mutex);
+
+	return retval;
+}
+
+static int check_report_mode(struct synaptics_rmi4_data *rmi4_data)
+{
+	int retval;
+	unsigned short report_size;
+	struct i2c_client *i2c = to_i2c_client(rmi4_data->pdev->dev.parent);
+
+	mutex_lock(&rmi4_data->rmi4_io_ctrl_mutex);
+
+	check_buffer(&buffer.write, &buffer.write_size, 7);
+
+	buffer.write[0] = hid_dd.command_register_index & MASK_8BIT;
+	buffer.write[1] = hid_dd.command_register_index >> 8;
+	buffer.write[2] = (FEATURE_REPORT_TYPE << 4) | hid_report.set_mode_id;
+	buffer.write[3] = GET_REPORT_COMMAND;
+	buffer.write[4] = hid_report.set_mode_id;
+	buffer.write[5] = hid_dd.data_register_index & MASK_8BIT;
+	buffer.write[6] = hid_dd.data_register_index >> 8;
+
+	retval = generic_write(i2c, 7);
+	if (retval < 0)
+		goto exit;
+
+	retval = generic_read(i2c, 2);
+	if (retval < 0)
+		goto exit;
+
+	report_size = (buffer.read[1] << 8) | buffer.read[0];
+
+	retval = generic_write(i2c, 7);
+	if (retval < 0)
+		goto exit;
+
+	retval = generic_read(i2c, report_size);
+	if (retval < 0)
+		goto exit;
+
+	retval = buffer.read[3];
+	dev_dbg(rmi4_data->pdev->dev.parent,
+			"%s: Report mode = %d\n",
+			__func__, retval);
+
+exit:
 	mutex_unlock(&rmi4_data->rmi4_io_ctrl_mutex);
 
 	return retval;
@@ -360,7 +409,7 @@ static int hid_i2c_init(struct synaptics_rmi4_data *rmi4_data)
 	buffer.write[0] = hid_dd.command_register_index & MASK_8BIT;
 	buffer.write[1] = hid_dd.command_register_index >> 8;
 	buffer.write[2] = 0x00;
-	buffer.write[3] = POWER_COMMAND;
+	buffer.write[3] = SET_POWER_COMMAND;
 	retval = generic_write(i2c, 4);
 	if (retval < 0)
 		goto exit;
@@ -487,9 +536,11 @@ exit:
 
 	if ((retval != length) && (recover == 1)) {
 		recover = 0;
-		retval = hid_i2c_init(rmi4_data);
-		if (retval == 0)
-			goto recover;
+		if (check_report_mode(rmi4_data) != RMI_MODE) {
+			retval = hid_i2c_init(rmi4_data);
+			if (retval == 0)
+				goto recover;
+		}
 	}
 
 	return retval;
@@ -540,9 +591,11 @@ recover:
 
 	if ((retval != length) && (recover == 1)) {
 		recover = 0;
-		retval = hid_i2c_init(rmi4_data);
-		if (retval == 0)
-			goto recover;
+		if (check_report_mode(rmi4_data) != RMI_MODE) {
+			retval = hid_i2c_init(rmi4_data);
+			if (retval == 0)
+				goto recover;
+		}
 	}
 
 	return retval;
