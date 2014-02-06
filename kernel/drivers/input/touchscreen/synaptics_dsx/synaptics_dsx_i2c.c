@@ -23,11 +23,131 @@
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/types.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/input/synaptics_dsx.h>
 #include "synaptics_dsx_core.h"
 
 #define SYN_I2C_RETRY_TIMES 10
+
+#ifdef CONFIG_OF
+static int parse_dt(struct device *dev, struct synaptics_dsx_board_data *bdata)
+{
+	int retval;
+	u32 value;
+	const char *name;
+	struct property *prop;
+	struct device_node *np = dev->of_node;
+
+	bdata->irq_gpio = of_get_named_gpio_flags(np,
+			"synaptics,irq-gpio", 0, NULL);
+
+	retval = of_property_read_u32(np, "synaptics,irq-flags", &value);
+	if (retval < 0)
+		return retval;
+	else
+		bdata->irq_flags = value;
+
+	retval = of_property_read_string(np, "synaptics,pwr-reg-name", &name);
+	if (retval == -EINVAL)
+		bdata->pwr_reg_name = NULL;
+	else if (retval < 0)
+		return retval;
+	else
+		bdata->pwr_reg_name = name;
+
+	retval = of_property_read_string(np, "synaptics,bus-reg-name", &name);
+	if (retval == -EINVAL)
+		bdata->bus_reg_name = NULL;
+	else if (retval < 0)
+		return retval;
+	else
+		bdata->bus_reg_name = name;
+
+	if (of_property_read_bool(np, "synaptics,power-gpio")) {
+		bdata->power_gpio = of_get_named_gpio_flags(np,
+				"synaptics,power-gpio", 0, NULL);
+		retval = of_property_read_u32(np, "synaptics,power-on-state",
+				&value);
+		if (retval < 0)
+			return retval;
+		else
+			bdata->power_on_state = value;
+	} else {
+		bdata->power_gpio = -1;
+	}
+
+	if (of_property_read_bool(np, "synaptics,power-delay-ms")) {
+		retval = of_property_read_u32(np, "synaptics,power-delay-ms",
+				&value);
+		if (retval < 0)
+			return retval;
+		else
+			bdata->power_delay_ms = value;
+	} else {
+		bdata->power_delay_ms = 0;
+	}
+
+	if (of_property_read_bool(np, "synaptics,reset-gpio")) {
+		bdata->reset_gpio = of_get_named_gpio_flags(np,
+				"synaptics,reset-gpio", 0, NULL);
+		retval = of_property_read_u32(np, "synaptics,reset-on-state",
+				&value);
+		if (retval < 0)
+			return retval;
+		else
+			bdata->reset_on_state = value;
+		retval = of_property_read_u32(np, "synaptics,reset-active-ms",
+				&value);
+		if (retval < 0)
+			return retval;
+		else
+			bdata->reset_active_ms = value;
+	} else {
+		bdata->reset_gpio = -1;
+	}
+
+	if (of_property_read_bool(np, "synaptics,reset-delay-ms")) {
+		retval = of_property_read_u32(np, "synaptics,reset-delay-ms",
+				&value);
+		if (retval < 0)
+			return retval;
+		else
+			bdata->reset_delay_ms = value;
+	} else {
+		bdata->reset_delay_ms = 0;
+	}
+
+	bdata->swap_axes = of_property_read_bool(np, "synaptics,swap-axes");
+
+	bdata->x_flip = of_property_read_bool(np, "synaptics,x-flip");
+
+	bdata->y_flip = of_property_read_bool(np, "synaptics,y-flip");
+
+	prop = of_find_property(np, "synaptics,cap-button-map", NULL);
+	if (prop && prop->length) {
+		bdata->cap_button_map->map = devm_kzalloc(dev,
+				prop->length,
+				GFP_KERNEL);
+		if (!bdata->cap_button_map->map)
+			return -ENOMEM;
+		bdata->cap_button_map->nbuttons = prop->length / sizeof(u32);
+		retval = of_property_read_u32_array(np,
+				"synaptics,cap-button-map",
+				bdata->cap_button_map->map,
+				bdata->cap_button_map->nbuttons);
+		if (retval < 0) {
+			bdata->cap_button_map->nbuttons = 0;
+			bdata->cap_button_map->map = NULL;
+		}
+	} else {
+		bdata->cap_button_map->nbuttons = 0;
+		bdata->cap_button_map->map = NULL;
+	}
+
+	return 0;
+}
+#endif
 
 static int synaptics_rmi4_i2c_set_page(struct synaptics_rmi4_data *rmi4_data,
 		unsigned short addr)
@@ -208,7 +328,32 @@ static int synaptics_rmi4_i2c_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 
+#ifdef CONFIG_OF
+	if (client->dev.of_node) {
+		hw_if.board_data = devm_kzalloc(&client->dev,
+				sizeof(struct synaptics_dsx_board_data),
+				GFP_KERNEL);
+		if (!hw_if.board_data) {
+			dev_err(&client->dev,
+					"%s: Failed to allocate memory for board data\n",
+					__func__);
+			return -ENOMEM;
+		}
+		hw_if.board_data->cap_button_map = devm_kzalloc(&client->dev,
+				sizeof(struct synaptics_dsx_cap_button_map),
+				GFP_KERNEL);
+		if (!hw_if.board_data->cap_button_map) {
+			dev_err(&client->dev,
+					"%s: Failed to allocate memory for button map\n",
+					__func__);
+			return -ENOMEM;
+		}
+		parse_dt(&client->dev, hw_if.board_data);
+	}
+#else
 	hw_if.board_data = client->dev.platform_data;
+#endif
+
 	hw_if.bus_access = &bus_access;
 
 	synaptics_dsx_i2c_device->name = PLATFORM_DRIVER_NAME;
@@ -242,10 +387,23 @@ static const struct i2c_device_id synaptics_rmi4_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, synaptics_rmi4_id_table);
 
+#ifdef CONFIG_OF
+static struct of_device_id synaptics_rmi4_of_match_table[] = {
+	{
+		.compatible = "synaptics,dsx",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, synaptics_rmi4_of_match_table);
+#else
+#define synaptics_rmi4_of_match_table NULL
+#endif
+
 static struct i2c_driver synaptics_rmi4_i2c_driver = {
 	.driver = {
 		.name = I2C_DRIVER_NAME,
 		.owner = THIS_MODULE,
+		.of_match_table = synaptics_rmi4_of_match_table,
 	},
 	.probe = synaptics_rmi4_i2c_probe,
 	.remove = __devexit_p(synaptics_rmi4_i2c_remove),

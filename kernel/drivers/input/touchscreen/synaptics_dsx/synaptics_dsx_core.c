@@ -2059,6 +2059,37 @@ flash_prog_mode:
 	return 0;
 }
 
+static int synaptics_rmi4_gpio_setup(int gpio, bool config, int dir, int state)
+{
+	int retval = 0;
+	unsigned char buf[16];
+
+	if (config) {
+		snprintf(buf, PAGE_SIZE, "dsx_gpio_%u\n", gpio);
+
+		retval = gpio_request(gpio, buf);
+		if (retval) {
+			pr_err("%s: Failed to get gpio %d (code: %d)",
+					__func__, gpio, retval);
+			return retval;
+		}
+
+		if (dir == 0)
+			retval = gpio_direction_input(gpio);
+		else
+			retval = gpio_direction_output(gpio, state);
+		if (retval) {
+			pr_err("%s: Failed to set gpio %d direction",
+					__func__, gpio);
+			return retval;
+		}
+	} else {
+		gpio_free(gpio);
+	}
+
+	return retval;
+}
+
 static void synaptics_rmi4_set_params(struct synaptics_rmi4_data *rmi4_data)
 {
 	unsigned char ii;
@@ -2179,7 +2210,7 @@ static int synaptics_rmi4_set_gpio(struct synaptics_rmi4_data *rmi4_data)
 	const struct synaptics_dsx_board_data *bdata =
 			rmi4_data->hw_if->board_data;
 
-	retval = bdata->gpio_config(
+	retval = synaptics_rmi4_gpio_setup(
 			bdata->irq_gpio,
 			true, 0, 0);
 	if (retval < 0) {
@@ -2190,7 +2221,7 @@ static int synaptics_rmi4_set_gpio(struct synaptics_rmi4_data *rmi4_data)
 	}
 
 	if (bdata->power_gpio >= 0) {
-		retval = bdata->gpio_config(
+		retval = synaptics_rmi4_gpio_setup(
 				bdata->power_gpio,
 				true, 1, !bdata->power_on_state);
 		if (retval < 0) {
@@ -2202,7 +2233,7 @@ static int synaptics_rmi4_set_gpio(struct synaptics_rmi4_data *rmi4_data)
 	}
 
 	if (bdata->reset_gpio >= 0) {
-		retval = bdata->gpio_config(
+		retval = synaptics_rmi4_gpio_setup(
 				bdata->reset_gpio,
 				true, 1, !bdata->reset_on_state);
 		if (retval < 0) {
@@ -2228,18 +2259,112 @@ static int synaptics_rmi4_set_gpio(struct synaptics_rmi4_data *rmi4_data)
 	return 0;
 
 err_gpio_reset:
-	if (bdata->power_gpio >= 0) {
-		bdata->gpio_config(
-				bdata->power_gpio,
-				false, 0, 0);
-	}
+	if (bdata->power_gpio >= 0)
+		synaptics_rmi4_gpio_setup(bdata->power_gpio, false, 0, 0);
 
 err_gpio_power:
-	bdata->gpio_config(
-			bdata->irq_gpio,
-			false, 0, 0);
+	synaptics_rmi4_gpio_setup(bdata->irq_gpio, false, 0, 0);
 
 err_gpio_irq:
+	return retval;
+}
+
+static int synaptics_rmi4_get_reg(struct synaptics_rmi4_data *rmi4_data,
+		bool get)
+{
+	int retval;
+	const struct synaptics_dsx_board_data *bdata =
+			rmi4_data->hw_if->board_data;
+
+	if (!get) {
+		retval = 0;
+		goto regulator_put;
+	}
+
+	if ((bdata->pwr_reg_name != NULL) && (*bdata->pwr_reg_name != 0)) {
+		rmi4_data->pwr_reg = regulator_get(rmi4_data->pdev->dev.parent,
+				bdata->pwr_reg_name);
+		if (IS_ERR(rmi4_data->pwr_reg)) {
+			dev_err(rmi4_data->pdev->dev.parent,
+					"%s: Failed to get power regulator\n",
+					__func__);
+			retval = PTR_ERR(rmi4_data->pwr_reg);
+			goto regulator_put;
+		}
+	}
+
+	if ((bdata->bus_reg_name != NULL) && (*bdata->bus_reg_name != 0)) {
+		rmi4_data->bus_reg = regulator_get(rmi4_data->pdev->dev.parent,
+				bdata->bus_reg_name);
+		if (IS_ERR(rmi4_data->bus_reg)) {
+			dev_err(rmi4_data->pdev->dev.parent,
+					"%s: Failed to get bus pullup regulator\n",
+					__func__);
+			retval = PTR_ERR(rmi4_data->bus_reg);
+			goto regulator_put;
+		}
+	}
+
+	return 0;
+
+regulator_put:
+	if (rmi4_data->pwr_reg) {
+		regulator_put(rmi4_data->pwr_reg);
+		rmi4_data->pwr_reg = NULL;
+	}
+
+	if (rmi4_data->bus_reg) {
+		regulator_put(rmi4_data->bus_reg);
+		rmi4_data->bus_reg = NULL;
+	}
+
+	return retval;
+}
+
+static int synaptics_rmi4_enable_reg(struct synaptics_rmi4_data *rmi4_data,
+		bool enable)
+{
+	int retval;
+	const struct synaptics_dsx_board_data *bdata =
+			rmi4_data->hw_if->board_data;
+
+	if (!enable) {
+		retval = 0;
+		goto disable_pwr_reg;
+	}
+
+	if (rmi4_data->bus_reg) {
+		retval = regulator_enable(rmi4_data->bus_reg);
+		if (retval < 0) {
+			dev_err(rmi4_data->pdev->dev.parent,
+					"%s: Failed to enable bus pullup regulator\n",
+					__func__);
+			goto exit;
+		}
+	}
+
+	if (rmi4_data->pwr_reg) {
+		retval = regulator_enable(rmi4_data->pwr_reg);
+		if (retval < 0) {
+			dev_err(rmi4_data->pdev->dev.parent,
+					"%s: Failed to enable power regulator\n",
+					__func__);
+			goto disable_bus_reg;
+		}
+		msleep(bdata->power_delay_ms);
+	}
+
+	return 0;
+
+disable_pwr_reg:
+	if (rmi4_data->pwr_reg)
+		regulator_disable(rmi4_data->pwr_reg);
+
+disable_bus_reg:
+	if (rmi4_data->bus_reg)
+		regulator_disable(rmi4_data->bus_reg);
+
+exit:
 	return retval;
 }
 
@@ -2531,20 +2656,6 @@ static int __devinit synaptics_rmi4_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	if (*bdata->regulator_name != 0x00) {
-		rmi4_data->regulator = regulator_get(&pdev->dev,
-				bdata->regulator_name);
-		if (IS_ERR(rmi4_data->regulator)) {
-			dev_err(&pdev->dev,
-					"%s: Failed to get regulator\n",
-					__func__);
-			retval = PTR_ERR(rmi4_data->regulator);
-			goto err_regulator;
-		}
-		regulator_enable(rmi4_data->regulator);
-		msleep(bdata->power_delay_ms);
-	}
-
 	rmi4_data->pdev = pdev;
 	rmi4_data->current_page = MASK_8BIT;
 	rmi4_data->hw_if = hw_if;
@@ -2560,14 +2671,28 @@ static int __devinit synaptics_rmi4_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rmi4_data);
 
-	if (bdata->gpio_config) {
-		retval = synaptics_rmi4_set_gpio(rmi4_data);
-		if (retval < 0) {
-			dev_err(&pdev->dev,
-					"%s: Failed to set up GPIO's\n",
-					__func__);
-			goto err_set_gpio;
-		}
+	retval = synaptics_rmi4_get_reg(rmi4_data, true);
+	if (retval < 0) {
+		dev_err(&pdev->dev,
+				"%s: Failed to get regulators\n",
+				__func__);
+		goto err_get_reg;
+	}
+
+	retval = synaptics_rmi4_enable_reg(rmi4_data, true);
+	if (retval < 0) {
+		dev_err(&pdev->dev,
+				"%s: Failed to enable regulators\n",
+				__func__);
+		goto err_enable_reg;
+	}
+
+	retval = synaptics_rmi4_set_gpio(rmi4_data);
+	if (retval < 0) {
+		dev_err(&pdev->dev,
+				"%s: Failed to set up GPIO's\n",
+				__func__);
+		goto err_set_gpio;
 	}
 
 	if (hw_if->ui_hw_init) {
@@ -2650,32 +2775,22 @@ err_enable_irq:
 	rmi4_data->input_dev = NULL;
 
 err_set_input_dev:
-	if (bdata->gpio_config) {
-		bdata->gpio_config(
-				bdata->irq_gpio,
-				false, 0, 0);
+	synaptics_rmi4_gpio_setup(bdata->irq_gpio, false, 0, 0);
 
-		if (bdata->reset_gpio >= 0) {
-			bdata->gpio_config(
-					bdata->reset_gpio,
-					false, 0, 0);
-		}
+	if (bdata->reset_gpio >= 0)
+		synaptics_rmi4_gpio_setup(bdata->reset_gpio, false, 0, 0);
 
-		if (bdata->power_gpio >= 0) {
-			bdata->gpio_config(
-					bdata->power_gpio,
-					false, 0, 0);
-		}
-	}
+	if (bdata->power_gpio >= 0)
+		synaptics_rmi4_gpio_setup(bdata->power_gpio, false, 0, 0);
 
 err_ui_hw_init:
 err_set_gpio:
-	if (rmi4_data->regulator) {
-		regulator_disable(rmi4_data->regulator);
-		regulator_put(rmi4_data->regulator);
-	}
+	synaptics_rmi4_enable_reg(rmi4_data, false);
 
-err_regulator:
+err_enable_reg:
+	synaptics_rmi4_get_reg(rmi4_data, false);
+
+err_get_reg:
 	kfree(rmi4_data);
 
 	return retval;
@@ -2717,28 +2832,16 @@ static int __devexit synaptics_rmi4_remove(struct platform_device *pdev)
 	input_unregister_device(rmi4_data->input_dev);
 	rmi4_data->input_dev = NULL;
 
-	if (bdata->gpio_config) {
-		bdata->gpio_config(
-				bdata->irq_gpio,
-				false, 0, 0);
+	synaptics_rmi4_gpio_setup(bdata->irq_gpio, false, 0, 0);
 
-		if (bdata->reset_gpio >= 0) {
-			bdata->gpio_config(
-					bdata->reset_gpio,
-					false, 0, 0);
-		}
+	if (bdata->reset_gpio >= 0)
+		synaptics_rmi4_gpio_setup(bdata->reset_gpio, false, 0, 0);
 
-		if (bdata->power_gpio >= 0) {
-			bdata->gpio_config(
-					bdata->power_gpio,
-					false, 0, 0);
-		}
-	}
+	if (bdata->power_gpio >= 0)
+		synaptics_rmi4_gpio_setup(bdata->power_gpio, false, 0, 0);
 
-	if (rmi4_data->regulator) {
-		regulator_disable(rmi4_data->regulator);
-		regulator_put(rmi4_data->regulator);
-	}
+	synaptics_rmi4_enable_reg(rmi4_data, false);
+	synaptics_rmi4_get_reg(rmi4_data, false);
 
 	kfree(rmi4_data);
 
@@ -2944,8 +3047,8 @@ static int synaptics_rmi4_suspend(struct device *dev)
 	}
 	mutex_unlock(&exp_data.mutex);
 
-	if (rmi4_data->regulator)
-		regulator_disable(rmi4_data->regulator);
+	if (rmi4_data->pwr_reg)
+		regulator_disable(rmi4_data->pwr_reg);
 
 	return 0;
 }
@@ -2970,8 +3073,8 @@ static int synaptics_rmi4_resume(struct device *dev)
 	if (rmi4_data->stay_awake)
 		return 0;
 
-	if (rmi4_data->regulator) {
-		regulator_enable(rmi4_data->regulator);
+	if (rmi4_data->pwr_reg) {
+		regulator_enable(rmi4_data->pwr_reg);
 		msleep(bdata->power_delay_ms);
 		rmi4_data->current_page = MASK_8BIT;
 		if (rmi4_data->hw_if->ui_hw_init)

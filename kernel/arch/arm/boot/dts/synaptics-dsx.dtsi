@@ -1,0 +1,37 @@
+/* Copyright (C) 2014 Synaptics Incorporated
+ *
+ * Copyright (C) 2014 Alexandra Chin <alexandra.chin@tw.synaptics.com>
+ * Copyright (C) 2014 Scott Lin <scott.lin@tw.synaptics.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ */
+
+&soc {
+	i2c@f9923000 {
+		status = "ok";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		synaptics_dsx@20 {
+			compatible = "synaptics,dsx";
+			reg = <0x20>;
+			interrupt-parent = <&msmgpio>;
+			interrupts = <61 0x2>;
+			vdd_ana-supply = <&pm8941_l12>;
+			vcc_i2c-supply = <&pm8941_s3>;
+			synaptics,pwr-reg-name = "vdd_ana";
+			synaptics,bus-reg-name = "vcc_i2c";
+			synaptics,irq-gpio = <&msmgpio 61 0x00>;
+			synaptics,irq-flags = <0x2>;
+			synaptics,power-delay-ms = <160>;
+			synaptics,reset-delay-ms = <100>;
+		};
+	};
+};

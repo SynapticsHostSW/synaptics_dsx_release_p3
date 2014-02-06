@@ -31,7 +31,7 @@
  */
 struct synaptics_dsx_cap_button_map {
 	unsigned char nbuttons;
-	unsigned char *map;
+	unsigned int *map;
 };
 
 /*
@@ -53,8 +53,8 @@ struct synaptics_dsx_cap_button_map {
  * @reset_active_ms: reset active time
  * @byte_delay_us: delay time between two bytes of SPI data
  * @block_delay_us: delay time between two SPI transfers
- * @regulator_name: pointer to name of regulator
- * @gpio_config: pointer to gpio configuration function
+ * @pwr_reg_name: pointer to name of regulator for power control
+ * @bus_reg_name: pointer to name of regulator for bus pullup control
  * @cap_button_map: pointer to 0d button map
  */
 struct synaptics_dsx_board_data {
@@ -76,8 +76,8 @@ struct synaptics_dsx_board_data {
 	unsigned int reset_active_ms;
 	unsigned int byte_delay_us;
 	unsigned int block_delay_us;
-	unsigned char *regulator_name;
-	int (*gpio_config)(int gpio, bool configure, int dir, int state);
+	const char *pwr_reg_name;
+	const char *bus_reg_name;
 	struct synaptics_dsx_cap_button_map *cap_button_map;
 };
 

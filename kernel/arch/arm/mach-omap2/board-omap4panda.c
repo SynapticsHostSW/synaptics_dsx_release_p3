@@ -99,8 +99,6 @@
 #define WILINK_UART_DEV_NAME	"/dev/ttyO1"
 
 /* Synaptics changes for Panda Board */
-static int synaptics_gpio_setup(int gpio, bool configure, int dir, int state);
-
 #if (SYNAPTICS_MODULE == TM2448)
 #define SYNAPTICS_I2C_DEVICE
 #define DSX_I2C_ADDR 0x20
@@ -116,7 +114,8 @@ static int synaptics_gpio_setup(int gpio, bool configure, int dir, int state);
 #define DSX_RESET_ACTIVE_MS 20
 #define DSX_IRQ_ON_STATE 0
 #define DSX_IRQ_FLAGS IRQF_TRIGGER_FALLING
-static unsigned char regulator_name[] = "";
+static unsigned char pwr_reg_name[] = "";
+static unsigned char bus_reg_name[] = "";
 static unsigned char cap_button_codes[] =
 		{};
 
@@ -134,7 +133,8 @@ static unsigned char cap_button_codes[] =
 #define DSX_RESET_ACTIVE_MS 20
 #define DSX_IRQ_ON_STATE 0
 #define DSX_IRQ_FLAGS IRQF_TRIGGER_FALLING
-static unsigned char regulator_name[] = "";
+static unsigned char pwr_reg_name[] = "";
+static unsigned char bus_reg_name[] = "";
 static unsigned char cap_button_codes[] =
 		{KEY_MENU, KEY_HOME, KEY_BACK, KEY_SEARCH};
 
@@ -158,7 +158,8 @@ static unsigned char cap_button_codes[] =
 #define DSX_RESET_ACTIVE_MS 20
 #define DSX_IRQ_ON_STATE 0
 #define DSX_IRQ_FLAGS IRQF_TRIGGER_FALLING
-static unsigned char regulator_name[] = "";
+static unsigned char pwr_reg_name[] = "";
+static unsigned char bus_reg_name[] = "";
 static unsigned char cap_button_codes[] =
 		{};
 
@@ -179,7 +180,8 @@ static unsigned char cap_button_codes[] =
 #define DSX_RESET_ACTIVE_MS 20
 #define DSX_IRQ_ON_STATE 0
 #define DSX_IRQ_FLAGS IRQF_TRIGGER_FALLING
-static unsigned char regulator_name[] = "";
+static unsigned char pwr_reg_name[] = "";
+static unsigned char bus_reg_name[] = "";
 static unsigned char cap_button_codes[] =
 		{};
 #endif
@@ -200,8 +202,8 @@ static struct synaptics_dsx_board_data dsx_board_data = {
 	.reset_on_state = DSX_RESET_ON_STATE,
 	.reset_delay_ms = DSX_RESET_DELAY_MS,
 	.reset_active_ms = DSX_RESET_ACTIVE_MS,
- 	.gpio_config = synaptics_gpio_setup,
- 	.regulator_name = regulator_name,
+ 	.pwr_reg_name = pwr_reg_name,
+ 	.bus_reg_name = bus_reg_name,
  	.cap_button_map = &cap_button_map,
 #ifdef SYNAPTICS_SPI_DEVICE
 	.byte_delay_us = DSX_SPI_BYTE_DELAY_US,
@@ -235,37 +237,6 @@ static struct spi_board_info spi_devices[] = {
 };
 static struct i2c_board_info bus4_i2c_devices[] = {};
 #endif
-
-static int synaptics_gpio_setup(int gpio, bool configure, int dir, int state)
-{
-	int retval = 0;
-	unsigned char buf[16];
-
-	if (configure) {
-		snprintf(buf, PAGE_SIZE, "dsx_gpio_%u\n", gpio);
-
-		retval = gpio_request(gpio, buf);
-		if (retval) {
-			pr_err("%s: Failed to get gpio %d (code: %d)",
-					__func__, gpio, retval);
-			return retval;
-		}
-
-		if (dir == 0)
-			retval = gpio_direction_input(gpio);
-		else
-			retval = gpio_direction_output(gpio, state);
-		if (retval) {
-			pr_err("%s: Failed to set gpio %d direction",
-					__func__, gpio);
-			return retval;
-		}
-	} else {
-		gpio_free(gpio);
-	}
-
-	return retval;
-}
 
 static void synaptics_gpio_init(void)
 {
