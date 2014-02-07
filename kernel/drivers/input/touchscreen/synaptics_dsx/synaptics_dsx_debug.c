@@ -225,6 +225,17 @@ fdb_found:
 		rmidb->intr_mask |= 1 << ii;
 	}
 
+	rmi4_data->intr_mask[0] |= rmidb->intr_mask;
+
+	addr = rmi4_data->f01_ctrl_base_addr + 1;
+
+	retval = synaptics_rmi4_reg_write(rmi4_data,
+			addr,
+			&(rmi4_data->intr_mask[0]),
+			sizeof(rmi4_data->intr_mask[0]));
+	if (retval < 0)
+		return retval;
+
 	return 0;
 }
 
