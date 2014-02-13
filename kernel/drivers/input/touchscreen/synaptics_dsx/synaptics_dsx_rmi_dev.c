@@ -22,6 +22,8 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/input.h>
+#include <linux/signal.h>
+#include <linux/sched.h>
 #include <linux/gpio.h>
 #include <linux/uaccess.h>
 #include <linux/cdev.h>
@@ -52,11 +54,31 @@ static ssize_t rmidev_sysfs_release_store(struct device *dev,
 static ssize_t rmidev_sysfs_attn_state_show(struct device *dev,
 		struct device_attribute *attr, char *buf);
 
+static ssize_t rmidev_sysfs_pid_show(struct device *dev,
+		struct device_attribute *attr, char *buf);
+
+static ssize_t rmidev_sysfs_pid_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count);
+
+static ssize_t rmidev_sysfs_term_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count);
+
+static ssize_t rmidev_sysfs_intr_mask_show(struct device *dev,
+		struct device_attribute *attr, char *buf);
+
+static ssize_t rmidev_sysfs_intr_mask_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count);
+
 struct rmidev_handle {
 	dev_t dev_no;
+	pid_t pid;
+	unsigned char intr_mask;
 	struct device dev;
 	struct synaptics_rmi4_data *rmi4_data;
 	struct kobject *sysfs_dir;
+	struct siginfo interrupt_signal;
+	struct siginfo terminate_signal;
+	struct task_struct *task;
 	void *data;
 	bool irq_enabled;
 };
@@ -89,6 +111,15 @@ static struct device_attribute attrs[] = {
 	__ATTR(attn_state, S_IRUGO,
 			rmidev_sysfs_attn_state_show,
 			synaptics_rmi4_store_error),
+	__ATTR(pid, S_IRUGO | S_IWUGO,
+			rmidev_sysfs_pid_show,
+			rmidev_sysfs_pid_store),
+	__ATTR(term, S_IWUGO,
+			synaptics_rmi4_show_error,
+			rmidev_sysfs_term_store),
+	__ATTR(intr_mask, S_IRUGO | S_IWUGO,
+			rmidev_sysfs_intr_mask_show,
+			rmidev_sysfs_intr_mask_store),
 };
 
 static int rmidev_major_num;
@@ -275,6 +306,72 @@ static ssize_t rmidev_sysfs_attn_state_show(struct device *dev,
 	attn_state = gpio_get_value(bdata->irq_gpio);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", attn_state);
+}
+
+static ssize_t rmidev_sysfs_pid_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%u\n", rmidev->pid);
+}
+
+static ssize_t rmidev_sysfs_pid_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int input;
+	struct synaptics_rmi4_data *rmi4_data = rmidev->rmi4_data;
+
+	if (sscanf(buf, "%u", &input) != 1)
+		return -EINVAL;
+
+	rmidev->pid = input;
+
+	if (rmidev->pid) {
+		rmidev->task = pid_task(find_vpid(rmidev->pid), PIDTYPE_PID);
+		if (!rmidev->task) {
+			dev_err(rmi4_data->pdev->dev.parent,
+					"%s: Failed to locate PID of data logging tool\n",
+					__func__);
+			return -EINVAL;
+		}
+	}
+
+	return count;
+}
+
+static ssize_t rmidev_sysfs_term_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int input;
+
+	if (sscanf(buf, "%u", &input) != 1)
+		return -EINVAL;
+
+	if (input != 1)
+		return -EINVAL;
+
+	if (rmidev->pid)
+		send_sig_info(SIGTERM, &rmidev->terminate_signal, rmidev->task);
+
+	return count;
+}
+
+static ssize_t rmidev_sysfs_intr_mask_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "0x%02x\n", rmidev->intr_mask);
+}
+
+static ssize_t rmidev_sysfs_intr_mask_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int input;
+
+	if (sscanf(buf, "%u", &input) != 1)
+		return -EINVAL;
+
+	rmidev->intr_mask = (unsigned char)input;
+
+	return count;
 }
 
 /*
@@ -547,6 +644,18 @@ static int rmidev_create_device_class(void)
 	return 0;
 }
 
+static void rmidev_attn(struct synaptics_rmi4_data *rmi4_data,
+		unsigned char intr_mask)
+{
+	if (!rmidev)
+		return;
+
+	if (rmidev->pid && (rmidev->intr_mask & intr_mask))
+		send_sig_info(SIGIO, &rmidev->interrupt_signal, rmidev->task);
+
+	return;
+}
+
 static int rmidev_init_device(struct synaptics_rmi4_data *rmi4_data)
 {
 	int retval;
@@ -567,6 +676,14 @@ static int rmidev_init_device(struct synaptics_rmi4_data *rmi4_data)
 	}
 
 	rmidev->rmi4_data = rmi4_data;
+
+	memset(&rmidev->interrupt_signal, 0, sizeof(rmidev->interrupt_signal));
+	rmidev->interrupt_signal.si_signo = SIGIO;
+	rmidev->interrupt_signal.si_code = SI_USER;
+
+	memset(&rmidev->terminate_signal, 0, sizeof(rmidev->terminate_signal));
+	rmidev->terminate_signal.si_signo = SIGTERM;
+	rmidev->terminate_signal.si_code = SI_USER;
 
 	retval = rmidev_create_device_class();
 	if (retval < 0) {
@@ -754,7 +871,7 @@ static struct synaptics_rmi4_exp_fn rmidev_module = {
 	.suspend = NULL,
 	.resume = NULL,
 	.late_resume = NULL,
-	.attn = NULL,
+	.attn = rmidev_attn,
 };
 
 static int __init rmidev_module_init(void)

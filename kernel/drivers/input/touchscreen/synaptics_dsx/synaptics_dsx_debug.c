@@ -22,22 +22,11 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/input.h>
-#include <linux/signal.h>
-#include <linux/sched.h>
 #include <linux/platform_device.h>
 #include <linux/input/synaptics_dsx.h>
 #include "synaptics_dsx_core.h"
 
 #define SYSFS_FOLDER_NAME "rmidb"
-
-static ssize_t rmidb_sysfs_pid_show(struct device *dev,
-		struct device_attribute *attr, char *buf);
-
-static ssize_t rmidb_sysfs_pid_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count);
-
-static ssize_t rmidb_sysfs_term_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count);
 
 static ssize_t rmidb_sysfs_query_base_addr_show(struct device *dev,
 		struct device_attribute *attr, char *buf);
@@ -52,27 +41,17 @@ static ssize_t rmidb_sysfs_command_base_addr_show(struct device *dev,
 		struct device_attribute *attr, char *buf);
 
 struct synaptics_rmi4_db_handle {
-	pid_t pid;
 	unsigned char intr_mask;
 	unsigned char intr_reg_num;
 	unsigned short query_base_addr;
 	unsigned short control_base_addr;
 	unsigned short data_base_addr;
 	unsigned short command_base_addr;
-	struct siginfo interrupt_signal;
-	struct siginfo terminate_signal;
-	struct task_struct *task;
 	struct synaptics_rmi4_data *rmi4_data;
 	struct kobject *sysfs_dir;
 };
 
 static struct device_attribute attrs[] = {
-	__ATTR(pid, S_IRUGO | S_IWUGO,
-			rmidb_sysfs_pid_show,
-			rmidb_sysfs_pid_store),
-	__ATTR(term, S_IWUGO,
-			synaptics_rmi4_show_error,
-			rmidb_sysfs_term_store),
 	__ATTR(query_base_addr, S_IRUGO,
 			rmidb_sysfs_query_base_addr_show,
 			synaptics_rmi4_store_error),
@@ -90,53 +69,6 @@ static struct device_attribute attrs[] = {
 static struct synaptics_rmi4_db_handle *rmidb;
 
 DECLARE_COMPLETION(rmidb_remove_complete);
-
-static ssize_t rmidb_sysfs_pid_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%u\n", rmidb->pid);
-}
-
-static ssize_t rmidb_sysfs_pid_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	unsigned int input;
-	struct synaptics_rmi4_data *rmi4_data = rmidb->rmi4_data;
-
-	if (sscanf(buf, "%u", &input) != 1)
-		return -EINVAL;
-
-	rmidb->pid = input;
-
-	if (rmidb->pid) {
-		rmidb->task = pid_task(find_vpid(rmidb->pid), PIDTYPE_PID);
-		if (!rmidb->task) {
-			dev_err(rmi4_data->pdev->dev.parent,
-					"%s: Failed to locate debug app PID\n",
-					__func__);
-			return -EINVAL;
-		}
-	}
-
-	return count;
-}
-
-static ssize_t rmidb_sysfs_term_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	unsigned int input;
-
-	if (sscanf(buf, "%u", &input) != 1)
-		return -EINVAL;
-
-	if (input != 1)
-		return -EINVAL;
-
-	if (rmidb->pid)
-		send_sig_info(SIGTERM, &rmidb->terminate_signal, rmidb->task);
-
-	return count;
-}
 
 static ssize_t rmidb_sysfs_query_base_addr_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -245,9 +177,6 @@ static void synaptics_rmi4_db_attn(struct synaptics_rmi4_data *rmi4_data,
 	if (!rmidb)
 		return;
 
-	if (rmidb->pid && (rmidb->intr_mask & intr_mask))
-		send_sig_info(SIGIO, &rmidb->interrupt_signal, rmidb->task);
-
 	return;
 }
 
@@ -266,14 +195,6 @@ static int synaptics_rmi4_db_init(struct synaptics_rmi4_data *rmi4_data)
 	}
 
 	rmidb->rmi4_data = rmi4_data;
-
-	memset(&rmidb->interrupt_signal, 0, sizeof(rmidb->interrupt_signal));
-	rmidb->interrupt_signal.si_signo = SIGIO;
-	rmidb->interrupt_signal.si_code = SI_USER;
-
-	memset(&rmidb->terminate_signal, 0, sizeof(rmidb->terminate_signal));
-	rmidb->terminate_signal.si_signo = SIGTERM;
-	rmidb->terminate_signal.si_code = SI_USER;
 
 	retval = rmidb_scan_pdt();
 	if (retval < 0) {
