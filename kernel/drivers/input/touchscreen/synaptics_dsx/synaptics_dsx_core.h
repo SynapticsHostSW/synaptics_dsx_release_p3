@@ -221,6 +221,7 @@ struct synaptics_rmi4_data {
 	struct regulator *pwr_reg;
 	struct regulator *bus_reg;
 	struct mutex rmi4_reset_mutex;
+	struct mutex rmi4_report_mutex;
 	struct mutex rmi4_io_ctrl_mutex;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
