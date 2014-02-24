@@ -58,7 +58,7 @@
 #define SYNAPTICS_RMI4_FDB (0xdb)
 
 #define SYNAPTICS_RMI4_PRODUCT_INFO_SIZE 2
-#define SYNAPTICS_RMI4_DATE_CODE_SIZE 3
+#define SYNAPTICS_RMI4_DATE_CODE_SIZE 2
 #define SYNAPTICS_RMI4_PRODUCT_ID_SIZE 10
 #define SYNAPTICS_RMI4_BUILD_ID_SIZE 3
 
@@ -94,7 +94,7 @@ enum exp_fn {
 };
 
 /*
- * struct synaptics_rmi4_fn_desc - function descriptor fields in PDT
+ * struct synaptics_rmi4_fn_desc - function descriptor fields in PDT entry
  * @query_base_addr: base address for query registers
  * @cmd_base_addr: base address for command registers
  * @ctrl_base_addr: base address for control registers
@@ -114,9 +114,9 @@ struct synaptics_rmi4_fn_desc {
 /*
  * synaptics_rmi4_fn_full_addr - full 16-bit base addresses
  * @query_base: 16-bit base address for query registers
- * @cmd_base: 16-bit base address for data registers
- * @ctrl_base: 16-bit base address for command registers
- * @data_base: 16-bit base address for control registers
+ * @cmd_base: 16-bit base address for command registers
+ * @ctrl_base: 16-bit base address for control registers
+ * @data_base: 16-bit base address for data registers
  */
 struct synaptics_rmi4_fn_full_addr {
 	unsigned short query_base;
@@ -125,6 +125,13 @@ struct synaptics_rmi4_fn_full_addr {
 	unsigned short data_base;
 };
 
+/*
+ * struct synaptics_rmi4_f12_extra_data - extra data of F$12
+ * @data1_offset: offset to F12_2D_DATA01 register
+ * @data15_offset: offset to F12_2D_DATA15 register
+ * @data15_size: size of F12_2D_DATA15 register
+ * @data15_data: buffer for reading F12_2D_DATA15 register
+ */
 struct synaptics_rmi4_f12_extra_data {
 	unsigned char data1_offset;
 	unsigned char data15_offset;
@@ -133,7 +140,7 @@ struct synaptics_rmi4_f12_extra_data {
 };
 
 /*
- * struct synaptics_rmi4_fn - function handler data structure
+ * struct synaptics_rmi4_fn - RMI function handler
  * @fn_number: function number
  * @num_of_data_sources: number of data sources
  * @num_of_data_points: maximum number of fingers supported
@@ -144,6 +151,7 @@ struct synaptics_rmi4_f12_extra_data {
  * @link: linked list for function handlers
  * @data_size: size of private data
  * @data: pointer to private data
+ * @extra: pointer to extra data
  */
 struct synaptics_rmi4_fn {
 	unsigned char fn_number;
@@ -161,15 +169,14 @@ struct synaptics_rmi4_fn {
 
 /*
  * struct synaptics_rmi4_device_info - device information
- * @version_major: rmi protocol major version number
- * @version_minor: rmi protocol minor version number
- * @manufacturer_id: manufacturer id
+ * @version_major: RMI protocol major version number
+ * @version_minor: RMI protocol minor version number
+ * @manufacturer_id: manufacturer ID
  * @product_props: product properties information
  * @product_info: product info array
  * @date_code: device manufacture date
- * @tester_id: tester id array
- * @serial_number: device serial number
- * @product_id_string: device product id
+ * @product_id_string: device product ID
+ * @build_id: firmware build ID
  * @support_fn_list: linked list for function handlers
  */
 struct synaptics_rmi4_device_info {
@@ -179,39 +186,50 @@ struct synaptics_rmi4_device_info {
 	unsigned char product_props;
 	unsigned char product_info[SYNAPTICS_RMI4_PRODUCT_INFO_SIZE];
 	unsigned char date_code[SYNAPTICS_RMI4_DATE_CODE_SIZE];
-	unsigned short tester_id;
-	unsigned short serial_number;
 	unsigned char product_id_string[SYNAPTICS_RMI4_PRODUCT_ID_SIZE + 1];
 	unsigned char build_id[SYNAPTICS_RMI4_BUILD_ID_SIZE];
 	struct list_head support_fn_list;
 };
 
 /*
- * struct synaptics_rmi4_data - rmi4 device instance data
+ * struct synaptics_rmi4_data - RMI4 device instance data
  * @pdev: pointer to platform device
  * @input_dev: pointer to associated input device
  * @hw_if: pointer to hardware interface data
  * @rmi4_mod_info: device information
  * @pwr_reg: pointer to regulator for power control
  * @bus_reg: pointer to regulator for bus pullup control
- * @rmi4_io_ctrl_mutex: mutex for i2c i/o control
- * @early_suspend: instance to support early suspend power management
- * @current_page: current page in sensor to acess
- * @button_0d_enabled: flag for 0d button support
- * @full_pm_cycle: flag for full power management cycle in early suspend stage
+ * @rmi4_reset_mutex: mutex for software reset
+ * @rmi4_report_mutex: mutex for input event reporting
+ * @rmi4_io_ctrl_mutex: mutex for communication interface I/O
+ * @early_suspend: early suspend power management
+ * @current_page: current RMI page for register access
+ * @button_0d_enabled: switch for enabling 0d button support
+ * @full_pm_cycle: switch for enabling full power management cycle
+ * @num_of_tx: number of Tx channels for 2D touch
+ * @num_of_rx: number of Rx channels for 2D touch
+ * @num_of_fingers: maximum number of fingers for 2D touch
+ * @max_touch_width: maximum touch width
+ * @report_enable: input data to report for F$12
+ * @no_sleep_setting: default setting of NoSleep in F01_RMI_CTRL00 register
+ * @intr_mask: interrupt enable mask
+ * @button_txrx_mapping: Tx Rx mapping of 0D buttons
  * @num_of_intr_regs: number of interrupt registers
- * @f01_query_base_addr: query base address for f01
- * @f01_cmd_base_addr: command base address for f01
- * @f01_ctrl_base_addr: control base address for f01
- * @f01_data_base_addr: data base address for f01
+ * @f01_query_base_addr: query base address for f$01
+ * @f01_cmd_base_addr: command base address for f$01
+ * @f01_ctrl_base_addr: control base address for f$01
+ * @f01_data_base_addr: data base address for f$01
+ * @firmware_id: firmware build ID
  * @irq: attention interrupt
- * @sensor_max_x: sensor maximum x value
- * @sensor_max_y: sensor maximum y value
- * @irq_enabled: flag for indicating interrupt enable status
- * @fingers_on_2d: flag to indicate presence of fingers in 2d area
+ * @sensor_max_x: maximum x coordinate for 2D touch
+ * @sensor_max_y: maximum y coordinate for 2D touch
+ * @flash_prog_mode: flag to indicate flash programming mode status
+ * @irq_enabled: flag to indicate attention interrupt enable status
+ * @fingers_on_2d: flag to indicate presence of fingers in 2D area
  * @sensor_sleep: flag to indicate sleep state of sensor
- * @wait: wait queue for touch data polling in interrupt thread
- * @irq_enable: pointer to irq enable function
+ * @stay_awake: flag to indicate whether to stay awake during suspend
+ * @irq_enable: pointer to interrupt enable function
+ * @reset_device: pointer to device reset function
  */
 struct synaptics_rmi4_data {
 	struct platform_device *pdev;
@@ -229,8 +247,8 @@ struct synaptics_rmi4_data {
 	unsigned char current_page;
 	unsigned char button_0d_enabled;
 	unsigned char full_pm_cycle;
-	unsigned char num_of_rx;
 	unsigned char num_of_tx;
+	unsigned char num_of_rx;
 	unsigned char num_of_fingers;
 	unsigned char max_touch_width;
 	unsigned char report_enable;

@@ -529,17 +529,6 @@ static ssize_t synaptics_rmi4_suspend_store(struct device *dev,
 	return count;
 }
 
- /**
- * synaptics_rmi4_f11_abs_report()
- *
- * Called by synaptics_rmi4_report_touch() when valid Function $11
- * finger data has been detected.
- *
- * This function reads the Function $11 data registers, determines the
- * status of each finger supported by the Function, processes any
- * necessary coordinate manipulation, reports the finger data to
- * the input subsystem, and returns the number of fingers detected.
- */
 static int synaptics_rmi4_f11_abs_report(struct synaptics_rmi4_data *rmi4_data,
 		struct synaptics_rmi4_fn *fhandler)
 {
@@ -684,17 +673,6 @@ exit:
 	return touch_count;
 }
 
- /**
- * synaptics_rmi4_f12_abs_report()
- *
- * Called by synaptics_rmi4_report_touch() when valid Function $12
- * finger data has been detected.
- *
- * This function reads the Function $12 data registers, determines the
- * status of each finger supported by the Function, processes any
- * necessary coordinate manipulation, reports the finger data to
- * the input subsystem, and returns the number of fingers detected.
- */
 static int synaptics_rmi4_f12_abs_report(struct synaptics_rmi4_data *rmi4_data,
 		struct synaptics_rmi4_fn *fhandler)
 {
@@ -976,15 +954,6 @@ static void synaptics_rmi4_f1a_report(struct synaptics_rmi4_data *rmi4_data,
 	return;
 }
 
- /**
- * synaptics_rmi4_report_touch()
- *
- * Called by synaptics_rmi4_sensor_report().
- *
- * This function calls the appropriate finger data reporting function
- * based on the function handler it receives and returns the number of
- * fingers detected.
- */
 static void synaptics_rmi4_report_touch(struct synaptics_rmi4_data *rmi4_data,
 		struct synaptics_rmi4_fn *fhandler)
 {
@@ -1023,15 +992,6 @@ static void synaptics_rmi4_report_touch(struct synaptics_rmi4_data *rmi4_data,
 	return;
 }
 
- /**
- * synaptics_rmi4_sensor_report()
- *
- * Called by synaptics_rmi4_irq().
- *
- * This function determines the interrupt source(s) from the sensor
- * and calls synaptics_rmi4_report_touch() with the appropriate
- * function handler for each function with valid data inputs.
- */
 static void synaptics_rmi4_sensor_report(struct synaptics_rmi4_data *rmi4_data)
 {
 	int retval;
@@ -1100,16 +1060,6 @@ static void synaptics_rmi4_sensor_report(struct synaptics_rmi4_data *rmi4_data)
 	return;
 }
 
- /**
- * synaptics_rmi4_irq()
- *
- * Called by the kernel when an interrupt occurs (when the sensor
- * asserts the attention irq).
- *
- * This function is the ISR thread and handles the acquisition
- * and the reporting of finger data when the presence of fingers
- * is detected.
- */
 static irqreturn_t synaptics_rmi4_irq(int irq, void *data)
 {
 	struct synaptics_rmi4_data *rmi4_data = data;
@@ -1160,16 +1110,6 @@ static int synaptics_rmi4_int_enable(struct synaptics_rmi4_data *rmi4_data,
 	return retval;
 }
 
- /**
- * synaptics_rmi4_irq_enable()
- *
- * Called by synaptics_rmi4_probe() and the power management functions
- * in this driver and also exported to other expansion Function modules
- * such as rmi_dev.
- *
- * This function handles the enabling and disabling of the attention
- * irq including the setting up of the ISR thread.
- */
 static int synaptics_rmi4_irq_enable(struct synaptics_rmi4_data *rmi4_data,
 		bool enable)
 {
@@ -1257,17 +1197,6 @@ static int synaptics_rmi4_f01_init(struct synaptics_rmi4_data *rmi4_data,
 	return 0;
 }
 
- /**
- * synaptics_rmi4_f11_init()
- *
- * Called by synaptics_rmi4_query_device().
- *
- * This funtion parses information from the Function 11 registers
- * and determines the number of fingers supported, x and y data ranges,
- * offset to the associated interrupt status register, interrupt bit
- * mask, and gathers finger data acquisition capabilities from the query
- * registers.
- */
 static int synaptics_rmi4_f11_init(struct synaptics_rmi4_data *rmi4_data,
 		struct synaptics_rmi4_fn *fhandler,
 		struct synaptics_rmi4_fn_desc *fd,
@@ -1347,17 +1276,6 @@ static int synaptics_rmi4_f12_set_enables(struct synaptics_rmi4_data *rmi4_data,
 	return retval;
 }
 
- /**
- * synaptics_rmi4_f12_init()
- *
- * Called by synaptics_rmi4_query_device().
- *
- * This funtion parses information from the Function 12 registers and
- * determines the number of fingers supported, offset to the data1
- * register, x and y data ranges, offset to the associated interrupt
- * status register, interrupt bit mask, and allocates memory resources
- * for finger data acquisition.
- */
 static int synaptics_rmi4_f12_init(struct synaptics_rmi4_data *rmi4_data,
 		struct synaptics_rmi4_fn *fhandler,
 		struct synaptics_rmi4_fn_desc *fd,
@@ -1821,19 +1739,6 @@ static int synaptics_rmi4_alloc_fh(struct synaptics_rmi4_fn **fhandler,
 	return 0;
 }
 
- /**
- * synaptics_rmi4_query_device()
- *
- * Called by synaptics_rmi4_probe().
- *
- * This funtion scans the page description table, records the offsets
- * to the register types of Function $01, sets up the function handlers
- * for Function $11 and Function $12, determines the number of interrupt
- * sources from the sensor, adds valid Functions with data inputs to the
- * Function linked list, parses information from the query registers of
- * Function $01, and enables the interrupt sources from the valid Functions
- * with data inputs.
- */
 static int synaptics_rmi4_query_device(struct synaptics_rmi4_data *rmi4_data)
 {
 	int retval;
@@ -2030,11 +1935,6 @@ flash_prog_mode:
 	rmi->product_info[1] = f01_query[3] & MASK_7BIT;
 	rmi->date_code[0] = f01_query[4] & MASK_5BIT;
 	rmi->date_code[1] = f01_query[5] & MASK_4BIT;
-	rmi->date_code[2] = f01_query[6] & MASK_5BIT;
-	rmi->tester_id = ((f01_query[7] & MASK_7BIT) << 8) |
-			(f01_query[8] & MASK_7BIT);
-	rmi->serial_number = ((f01_query[9] & MASK_7BIT) << 8) |
-			(f01_query[10] & MASK_7BIT);
 	memcpy(rmi->product_id_string, &f01_query[11], 10);
 
 	if (rmi->manufacturer_id != 1) {
@@ -2533,15 +2433,6 @@ static int synaptics_rmi4_reset_device(struct synaptics_rmi4_data *rmi4_data)
 	return 0;
 }
 
-/**
-* synaptics_rmi4_exp_fn_work()
-*
-* Called by the kernel at the scheduled time.
-*
-* This function is a work thread that checks for the insertion and
-* removal of other expansion Function modules such as rmi_dev and calls
-* their initialization and removal callback functions accordingly.
-*/
 static void synaptics_rmi4_exp_fn_work(struct work_struct *work)
 {
 	struct synaptics_rmi4_exp_fhandler *exp_fhandler;
@@ -2571,18 +2462,6 @@ static void synaptics_rmi4_exp_fn_work(struct work_struct *work)
 	return;
 }
 
-/**
-* synaptics_rmi4_new_function()
-*
-* Called by other expansion Function modules in their module init and
-* module exit functions.
-*
-* This function is used by other expansion Function modules such as
-* rmi_dev to register themselves with the driver by providing their
-* initialization and removal callback function pointers so that they
-* can be inserted or removed dynamically at module init and exit times,
-* respectively.
-*/
 void synaptics_rmi4_new_function(struct synaptics_rmi4_exp_fn *exp_fn,
 		bool insert)
 {
@@ -2629,20 +2508,6 @@ exit:
 }
 EXPORT_SYMBOL(synaptics_rmi4_new_function);
 
- /**
- * synaptics_rmi4_probe()
- *
- * Called by the kernel when an association with an I2C device of the
- * same name is made (after doing i2c_add_driver).
- *
- * This funtion allocates and initializes the resources for the driver
- * as an input driver, turns on the power to the sensor, queries the
- * sensor for its supported Functions and characteristics, registers
- * the driver to the input subsystem, sets up the interrupt, handles
- * the registration of the early_suspend and late_resume functions,
- * and creates a work queue for detection of other expansion Function
- * modules.
- */
 static int __devinit synaptics_rmi4_probe(struct platform_device *pdev)
 {
 	int retval;
@@ -2816,16 +2681,6 @@ err_get_reg:
 	return retval;
 }
 
- /**
- * synaptics_rmi4_remove()
- *
- * Called by the kernel when the association with an I2C device of the
- * same name is broken (when the driver is unloaded).
- *
- * This funtion terminates the work queue, stops sensor data acquisition,
- * frees the interrupt, unregisters the driver from the input subsystem,
- * turns off the power to the sensor, and frees other allocated resources.
- */
 static int __devexit synaptics_rmi4_remove(struct platform_device *pdev)
 {
 	unsigned char attr_count;
@@ -2869,13 +2724,6 @@ static int __devexit synaptics_rmi4_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
- /**
- * synaptics_rmi4_sensor_sleep()
- *
- * Called by synaptics_rmi4_early_suspend() and synaptics_rmi4_suspend().
- *
- * This function stops finger data acquisition and puts the sensor to sleep.
- */
 static void synaptics_rmi4_sensor_sleep(struct synaptics_rmi4_data *rmi4_data)
 {
 	int retval;
@@ -2913,13 +2761,6 @@ static void synaptics_rmi4_sensor_sleep(struct synaptics_rmi4_data *rmi4_data)
 	return;
 }
 
- /**
- * synaptics_rmi4_sensor_wake()
- *
- * Called by synaptics_rmi4_resume() and synaptics_rmi4_late_resume().
- *
- * This function wakes the sensor from sleep.
- */
 static void synaptics_rmi4_sensor_wake(struct synaptics_rmi4_data *rmi4_data)
 {
 	int retval;
@@ -2959,15 +2800,6 @@ static void synaptics_rmi4_sensor_wake(struct synaptics_rmi4_data *rmi4_data)
 }
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
- /**
- * synaptics_rmi4_early_suspend()
- *
- * Called by the kernel during the early suspend phase when the system
- * enters suspend.
- *
- * This function calls synaptics_rmi4_sensor_sleep() to stop finger
- * data acquisition and put the sensor to sleep.
- */
 static void synaptics_rmi4_early_suspend(struct early_suspend *h)
 {
 	struct synaptics_rmi4_exp_fhandler *exp_fhandler;
@@ -2996,15 +2828,6 @@ static void synaptics_rmi4_early_suspend(struct early_suspend *h)
 	return;
 }
 
- /**
- * synaptics_rmi4_late_resume()
- *
- * Called by the kernel during the late resume phase when the system
- * wakes up from suspend.
- *
- * This function goes through the sensor wake process if the system wakes
- * up from early suspend (without going into suspend).
- */
 static void synaptics_rmi4_late_resume(struct early_suspend *h)
 {
 	struct synaptics_rmi4_exp_fhandler *exp_fhandler;
@@ -3035,16 +2858,6 @@ static void synaptics_rmi4_late_resume(struct early_suspend *h)
 }
 #endif
 
- /**
- * synaptics_rmi4_suspend()
- *
- * Called by the kernel during the suspend phase when the system
- * enters suspend.
- *
- * This function stops finger data acquisition and puts the sensor to
- * sleep (if not already done so during the early suspend phase),
- * disables the interrupt, and turns off the power to the sensor.
- */
 static int synaptics_rmi4_suspend(struct device *dev)
 {
 	struct synaptics_rmi4_exp_fhandler *exp_fhandler;
@@ -3073,16 +2886,6 @@ static int synaptics_rmi4_suspend(struct device *dev)
 	return 0;
 }
 
- /**
- * synaptics_rmi4_resume()
- *
- * Called by the kernel during the resume phase when the system
- * wakes up from suspend.
- *
- * This function turns on the power to the sensor, wakes the sensor
- * from sleep, enables the interrupt, and starts finger data
- * acquisition.
- */
 static int synaptics_rmi4_resume(struct device *dev)
 {
 	struct synaptics_rmi4_exp_fhandler *exp_fhandler;
@@ -3133,15 +2936,6 @@ static struct platform_driver synaptics_rmi4_driver = {
 	.remove = __devexit_p(synaptics_rmi4_remove),
 };
 
- /**
- * synaptics_rmi4_init()
- *
- * Called by the kernel during do_initcalls (if built-in)
- * or when the driver is loaded (if a module).
- *
- * This function registers the driver to the I2C subsystem.
- *
- */
 static int __init synaptics_rmi4_init(void)
 {
 	int retval;
@@ -3153,14 +2947,6 @@ static int __init synaptics_rmi4_init(void)
 	return platform_driver_register(&synaptics_rmi4_driver);
 }
 
- /**
- * synaptics_rmi4_exit()
- *
- * Called by the kernel when the driver is unloaded.
- *
- * This funtion unregisters the driver from the I2C subsystem.
- *
- */
 static void __exit synaptics_rmi4_exit(void)
 {
 	platform_driver_unregister(&synaptics_rmi4_driver);
