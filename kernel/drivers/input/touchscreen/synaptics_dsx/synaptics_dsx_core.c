@@ -1931,10 +1931,8 @@ flash_prog_mode:
 
 	rmi->manufacturer_id = f01_query[0];
 	rmi->product_props = f01_query[1];
-	rmi->product_info[0] = f01_query[2] & MASK_7BIT;
-	rmi->product_info[1] = f01_query[3] & MASK_7BIT;
-	rmi->date_code[0] = f01_query[4] & MASK_5BIT;
-	rmi->date_code[1] = f01_query[5] & MASK_4BIT;
+	rmi->product_info[0] = f01_query[2];
+	rmi->product_info[1] = f01_query[3];
 	memcpy(rmi->product_id_string, &f01_query[11], 10);
 
 	if (rmi->manufacturer_id != 1) {

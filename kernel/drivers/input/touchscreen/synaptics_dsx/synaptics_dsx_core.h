@@ -58,7 +58,6 @@
 #define SYNAPTICS_RMI4_FDB (0xdb)
 
 #define SYNAPTICS_RMI4_PRODUCT_INFO_SIZE 2
-#define SYNAPTICS_RMI4_DATE_CODE_SIZE 2
 #define SYNAPTICS_RMI4_PRODUCT_ID_SIZE 10
 #define SYNAPTICS_RMI4_BUILD_ID_SIZE 3
 
@@ -172,10 +171,9 @@ struct synaptics_rmi4_fn {
  * @version_major: RMI protocol major version number
  * @version_minor: RMI protocol minor version number
  * @manufacturer_id: manufacturer ID
- * @product_props: product properties information
- * @product_info: product info array
- * @date_code: device manufacture date
- * @product_id_string: device product ID
+ * @product_props: product properties
+ * @product_info: product information
+ * @product_id_string: product ID
  * @build_id: firmware build ID
  * @support_fn_list: linked list for function handlers
  */
@@ -185,7 +183,6 @@ struct synaptics_rmi4_device_info {
 	unsigned char manufacturer_id;
 	unsigned char product_props;
 	unsigned char product_info[SYNAPTICS_RMI4_PRODUCT_INFO_SIZE];
-	unsigned char date_code[SYNAPTICS_RMI4_DATE_CODE_SIZE];
 	unsigned char product_id_string[SYNAPTICS_RMI4_PRODUCT_ID_SIZE + 1];
 	unsigned char build_id[SYNAPTICS_RMI4_BUILD_ID_SIZE];
 	struct list_head support_fn_list;
