@@ -1,18 +1,31 @@
 //
-//  Synaptics DSX I2C Driver
+//  Synaptics DSX Driver
 ///////////////////////////////////////////////////////////
+
+v2.2 Feb 19, 2014 scott.lin@tw.synaptics.com
+   - Remove touch_stopped flag to fix no touch issue caused by touching sensor during reset
+   - Add support for gloved finger reporting
+   - Add support for optional debug module
+   - Refactor optional test reporting module
+   - Add sysfs entries in optional test reporting module to show Tx and Rx mappings
+   - Correct report sizes of RT38 and RT40 in optional test reporting module
+   - Handle test reports of more than 4096 bytes in optional test reporting module
+   - Add support for HID over I2C (RMI mode) interface
+   - Add support for Device Tree hardware description
+   - Add support for RMI data logging based on any interrupt source in rmidev module
+   - Use mutex to prevent overlapping of finger reporting and finger freeing in core driver
 
 v2.1 Nov 01, 2013 scott.lin@tw.synaptics.com
    - Add bus abstraction layer
    - Add support for SPI
-   - Add support for optional active pen module
+   - Add support for active pen module
    - Update proximity module to utilize generic F$12 registers
    - Add support for updating display configuration in firmware update module
    - Fix bug in PDT scanning logic to operate for loop correctly on each page
 
 v2.0 Sep 24, 2013 scott.lin@tw.synaptics.com
    - Update registration interface for expansion modules
-   - Add support for optional test reporting and proximity modules
+   - Add support for proximity module and optional test reporting module
    - Add workaround for using F12_2D_Data15
 
 v1.23 Sep 06, 2013 scott.lin@tw.synaptics.com
@@ -44,15 +57,15 @@ v1.19 Apr 26, 2013 scott.lin@tw.synaptics.com
    - Correct placement of workqueue removal in error exit sequence of probe
 
 v1.18 Apr 23, 2013 scott.lin@tw.synaptics.com
-   - Use one-shot mechanism for queuing work to add/remove driver modules
+   - Use one-shot mechanism for queuing work to add/remove expansion modules
 
 v1.17 Apr 20, 2013 scott.lin@tw.synaptics.com
    - Add support to do re-flash based on DS4 (V5 bootloader) firmware
    - Fix conflicts in completion object names when building driver as one single module
 
 v1.16 Apr 19, 2013 scott.lin@tw.synaptics.com
-   - Clean up init and remove procedures of driver modules
-   - Allow driver modules to be built as individual loadable kernel modules
+   - Clean up init and remove procedures of expansion modules
+   - Allow expansion modules to be built as individual loadable kernel modules
 
 v1.15 Apr 18, 2013 scott.lin@tw.synaptics.com
    - Move setting of delay time after reset to platform data
