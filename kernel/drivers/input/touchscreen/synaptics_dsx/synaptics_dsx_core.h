@@ -194,6 +194,7 @@ struct synaptics_rmi4_device_info {
  * @input_dev: pointer to associated input device
  * @hw_if: pointer to hardware interface data
  * @rmi4_mod_info: device information
+ * @board_prop_dir: /sys/board_properties directory for virtual key map file
  * @pwr_reg: pointer to regulator for power control
  * @bus_reg: pointer to regulator for bus pullup control
  * @rmi4_reset_mutex: mutex for software reset
@@ -233,6 +234,7 @@ struct synaptics_rmi4_data {
 	struct input_dev *input_dev;
 	const struct synaptics_dsx_hw_interface *hw_if;
 	struct synaptics_rmi4_device_info rmi4_mod_info;
+	struct kobject *board_prop_dir;
 	struct regulator *pwr_reg;
 	struct regulator *bus_reg;
 	struct mutex rmi4_reset_mutex;

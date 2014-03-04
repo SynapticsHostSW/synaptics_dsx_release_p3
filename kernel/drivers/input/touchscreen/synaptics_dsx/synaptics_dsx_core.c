@@ -33,6 +33,8 @@
 
 #define INPUT_PHYS_NAME "synaptics_dsx/touch_input"
 
+#define VIRTUAL_KEY_MAP_FILE_NAME "virtualkeys." PLATFORM_DRIVER_NAME
+
 #ifdef KERNEL_ABOVE_2_6_38
 #define TYPE_B_PROTOCOL
 #endif
@@ -125,6 +127,9 @@ static ssize_t synaptics_rmi4_0dbutton_store(struct device *dev,
 
 static ssize_t synaptics_rmi4_suspend_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count);
+
+static ssize_t synaptics_rmi4_virtual_key_map_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf);
 
 struct synaptics_rmi4_f01_device_status {
 	union {
@@ -332,6 +337,8 @@ struct synaptics_rmi4_exp_fn_data {
 
 static struct synaptics_rmi4_exp_fn_data exp_data;
 
+struct synaptics_dsx_button_map *vir_button_map;
+
 static struct device_attribute attrs[] = {
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	__ATTR(full_pm_cycle, (S_IRUGO | S_IWUGO),
@@ -356,6 +363,14 @@ static struct device_attribute attrs[] = {
 	__ATTR(suspend, S_IWUGO,
 			synaptics_rmi4_show_error,
 			synaptics_rmi4_suspend_store),
+};
+
+static struct kobj_attribute virtual_key_map_attr = {
+	.attr = {
+		.name = VIRTUAL_KEY_MAP_FILE_NAME,
+		.mode = S_IRUGO,
+	},
+	.show = synaptics_rmi4_virtual_key_map_show,
 };
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -525,6 +540,27 @@ static ssize_t synaptics_rmi4_suspend_store(struct device *dev,
 		synaptics_rmi4_resume(dev);
 	else
 		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t synaptics_rmi4_virtual_key_map_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	int ii;
+	int cnt;
+	int count = 0;
+
+	for (ii = 0; ii < vir_button_map->nbuttons; ii++) {
+		cnt = snprintf(buf, PAGE_SIZE - count, "0x01:%d:%d:%d:%d:%d\n",
+				vir_button_map->map[ii * 5 + 0],
+				vir_button_map->map[ii * 5 + 1],
+				vir_button_map->map[ii * 5 + 2],
+				vir_button_map->map[ii * 5 + 3],
+				vir_button_map->map[ii * 5 + 4]);
+		buf += cnt;
+		count += cnt;
+	}
 
 	return count;
 }
@@ -2049,6 +2085,15 @@ static void synaptics_rmi4_set_params(struct synaptics_rmi4_data *rmi4_data)
 		}
 	}
 
+	if (vir_button_map->nbuttons) {
+		for (ii = 0; ii < vir_button_map->nbuttons; ii++) {
+			set_bit(vir_button_map->map[ii * 5],
+					rmi4_data->input_dev->keybit);
+			input_set_capability(rmi4_data->input_dev,
+					EV_KEY, vir_button_map->map[ii * 5]);
+		}
+	}
+
 	return;
 }
 
@@ -2056,6 +2101,8 @@ static int synaptics_rmi4_set_input_dev(struct synaptics_rmi4_data *rmi4_data)
 {
 	int retval;
 	int temp;
+	const struct synaptics_dsx_board_data *bdata =
+				rmi4_data->hw_if->board_data;
 
 	rmi4_data->input_dev = input_allocate_device();
 	if (rmi4_data->input_dev == NULL) {
@@ -2090,11 +2137,14 @@ static int synaptics_rmi4_set_input_dev(struct synaptics_rmi4_data *rmi4_data)
 	set_bit(INPUT_PROP_DIRECT, rmi4_data->input_dev->propbit);
 #endif
 
-	if (rmi4_data->hw_if->board_data->swap_axes) {
+	if (bdata->swap_axes) {
 		temp = rmi4_data->sensor_max_x;
 		rmi4_data->sensor_max_x = rmi4_data->sensor_max_y;
 		rmi4_data->sensor_max_y = temp;
 	}
+
+	if (bdata->max_y_for_2d >= 0)
+		rmi4_data->sensor_max_y = bdata->max_y_for_2d;
 
 	synaptics_rmi4_set_params(rmi4_data);
 
@@ -2381,6 +2431,8 @@ static int synaptics_rmi4_reset_device(struct synaptics_rmi4_data *rmi4_data)
 	int retval;
 	int temp;
 	struct synaptics_rmi4_exp_fhandler *exp_fhandler;
+	const struct synaptics_dsx_board_data *bdata =
+				rmi4_data->hw_if->board_data;
 
 	mutex_lock(&(rmi4_data->rmi4_reset_mutex));
 
@@ -2408,11 +2460,14 @@ static int synaptics_rmi4_reset_device(struct synaptics_rmi4_data *rmi4_data)
 		return retval;
 	}
 
-	if (rmi4_data->hw_if->board_data->swap_axes) {
+	if (bdata->swap_axes) {
 		temp = rmi4_data->sensor_max_x;
 		rmi4_data->sensor_max_x = rmi4_data->sensor_max_y;
 		rmi4_data->sensor_max_y = temp;
 	}
+
+	if (bdata->max_y_for_2d >= 0)
+		rmi4_data->sensor_max_y = bdata->max_y_for_2d;
 
 	synaptics_rmi4_set_params(rmi4_data);
 
@@ -2554,6 +2609,8 @@ static int __devinit synaptics_rmi4_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rmi4_data);
 
+	vir_button_map = bdata->vir_button_map;
+
 	retval = synaptics_rmi4_get_reg(rmi4_data, true);
 	if (retval < 0) {
 		dev_err(&pdev->dev,
@@ -2619,6 +2676,26 @@ static int __devinit synaptics_rmi4_probe(struct platform_device *pdev)
 		goto err_enable_irq;
 	}
 
+	if (vir_button_map->nbuttons) {
+		rmi4_data->board_prop_dir = kobject_create_and_add(
+				"board_properties", NULL);
+		if (!rmi4_data->board_prop_dir) {
+			dev_err(&pdev->dev,
+					"%s: Failed to create board_properties directory\n",
+					__func__);
+			goto err_virtual_buttons;
+		} else {
+			retval = sysfs_create_file(rmi4_data->board_prop_dir,
+					&virtual_key_map_attr.attr);
+			if (retval < 0) {
+				dev_err(&pdev->dev,
+						"%s: Failed to create virtual key map file\n",
+						__func__);
+				goto err_virtual_buttons;
+			}
+		}
+	}
+
 	for (attr_count = 0; attr_count < ARRAY_SIZE(attrs); attr_count++) {
 		retval = sysfs_create_file(&rmi4_data->input_dev->dev.kobj,
 				&attrs[attr_count].attr);
@@ -2644,6 +2721,13 @@ err_sysfs:
 	for (attr_count--; attr_count >= 0; attr_count--) {
 		sysfs_remove_file(&rmi4_data->input_dev->dev.kobj,
 				&attrs[attr_count].attr);
+	}
+
+err_virtual_buttons:
+	if (rmi4_data->board_prop_dir) {
+		sysfs_remove_file(rmi4_data->board_prop_dir,
+				&virtual_key_map_attr.attr);
+		kobject_put(rmi4_data->board_prop_dir);
 	}
 
 	synaptics_rmi4_irq_enable(rmi4_data, false);
@@ -2693,6 +2777,12 @@ static int __devexit synaptics_rmi4_remove(struct platform_device *pdev)
 	for (attr_count = 0; attr_count < ARRAY_SIZE(attrs); attr_count++) {
 		sysfs_remove_file(&rmi4_data->input_dev->dev.kobj,
 				&attrs[attr_count].attr);
+	}
+
+	if (rmi4_data->board_prop_dir) {
+		sysfs_remove_file(rmi4_data->board_prop_dir,
+				&virtual_key_map_attr.attr);
+		kobject_put(rmi4_data->board_prop_dir);
 	}
 
 	synaptics_rmi4_irq_enable(rmi4_data, false);

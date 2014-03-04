@@ -187,3 +187,34 @@ above in the firmware/synaptics directory in your kernel source tree and make
 sure the line below is included in firmware/Makefile. Note that the line below
 is commented out by default in the example Makefile in the tarball.
    fw-shipped-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE) += synaptics/startup_fw_update.img
+
+
+
+VIRTUAL BUTTONS
+---------------
+
+The example board file (board-omap4panda.c) and dtsi file (synaptics-dsx.dtsi)
+contain support for virtual buttons. In the example board file, the virtual key
+map is defined in the vir_button_codes data structure. In the example dtsi file,
+the virtual key map is defined in the synaptics,vir-button-codes property.
+
+Detailed information on the virtual kep map can be found in the link below.
+   http://source.android.com/devices/tech/input/touch-devices.html#virtual-key-map-files
+
+In addition to the virtual key map file, a key layout file also needs to be
+created and placed in the /system/usr/keylayout directory in the Android file
+system. The key layout file to match the example board file and dtsi file needs
+to be named synaptics_dsx.kl and contain the following information.
+   key 102 HOME VIRTUAL
+   key 158 BACK VIRTUAL
+
+Detailed information on the key layout file can be found in the link below.
+   http://source.android.com/devices/tech/input/key-layout-files.html#virtual-soft-keys
+
+When there are virtual buttons, the maximum sensor Y value may extend beyond
+the area covered by the display. In this case, the maximum Y value for the
+display (i.e. 2D touch) area is specified in the DSX_MAX_Y_FOR_2D macro in the
+example board file and in the synaptics,max-y-for-2d property in the example
+dtsi file. Note that this maximum Y value for the display area is to be
+specified in sensor resolution units, not in display resolution units (unless
+the two match).
