@@ -105,16 +105,6 @@
 		};
 	};
 
-	gen-vkeys {
-		compatible = "qcom,gen-vkeys";
-		label = "atmel_mxt_ts";
-		qcom,disp-maxx = <540>;
-		qcom,disp-maxy = <960>;
-		qcom,panel-maxx = <566>;
-		qcom,panel-maxy = <1067>;
-		qcom,key-codes = <158 139 102 217>;
-	};
-
 	sound {
 		qcom,model = "apq8074-taiko-db-snd-card";
 		qcom,hdmi-audio-rx;
