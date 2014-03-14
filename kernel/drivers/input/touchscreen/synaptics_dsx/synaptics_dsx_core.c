@@ -1147,11 +1147,16 @@ static int synaptics_rmi4_int_enable(struct synaptics_rmi4_data *rmi4_data,
 }
 
 static int synaptics_rmi4_irq_enable(struct synaptics_rmi4_data *rmi4_data,
-		bool enable)
+		bool enable, bool attn_only)
 {
 	int retval = 0;
 	const struct synaptics_dsx_board_data *bdata =
 			rmi4_data->hw_if->board_data;
+
+	if (attn_only) {
+		retval = synaptics_rmi4_int_enable(rmi4_data, enable);
+		return retval;
+	}
 
 	if (enable) {
 		if (rmi4_data->irq_enabled)
@@ -2436,7 +2441,7 @@ static int synaptics_rmi4_reset_device(struct synaptics_rmi4_data *rmi4_data)
 
 	mutex_lock(&(rmi4_data->rmi4_reset_mutex));
 
-	synaptics_rmi4_irq_enable(rmi4_data, false);
+	synaptics_rmi4_irq_enable(rmi4_data, false, false);
 
 	retval = synaptics_rmi4_sw_reset(rmi4_data);
 	if (retval < 0) {
@@ -2479,7 +2484,7 @@ static int synaptics_rmi4_reset_device(struct synaptics_rmi4_data *rmi4_data)
 	}
 	mutex_unlock(&exp_data.mutex);
 
-	synaptics_rmi4_irq_enable(rmi4_data, true);
+	synaptics_rmi4_irq_enable(rmi4_data, true, false);
 
 	mutex_unlock(&(rmi4_data->rmi4_reset_mutex));
 
@@ -2600,8 +2605,8 @@ static int __devinit synaptics_rmi4_probe(struct platform_device *pdev)
 	rmi4_data->irq_enabled = false;
 	rmi4_data->fingers_on_2d = false;
 
-	rmi4_data->irq_enable = synaptics_rmi4_irq_enable;
 	rmi4_data->reset_device = synaptics_rmi4_reset_device;
+	rmi4_data->irq_enable = synaptics_rmi4_irq_enable;
 
 	mutex_init(&(rmi4_data->rmi4_reset_mutex));
 	mutex_init(&(rmi4_data->rmi4_report_mutex));
@@ -2668,7 +2673,7 @@ static int __devinit synaptics_rmi4_probe(struct platform_device *pdev)
 
 	rmi4_data->irq = gpio_to_irq(bdata->irq_gpio);
 
-	retval = synaptics_rmi4_irq_enable(rmi4_data, true);
+	retval = synaptics_rmi4_irq_enable(rmi4_data, true, false);
 	if (retval < 0) {
 		dev_err(&pdev->dev,
 				"%s: Failed to enable attention interrupt\n",
@@ -2730,7 +2735,7 @@ err_virtual_buttons:
 		kobject_put(rmi4_data->board_prop_dir);
 	}
 
-	synaptics_rmi4_irq_enable(rmi4_data, false);
+	synaptics_rmi4_irq_enable(rmi4_data, false, false);
 
 err_enable_irq:
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -2785,7 +2790,7 @@ static int __devexit synaptics_rmi4_remove(struct platform_device *pdev)
 		kobject_put(rmi4_data->board_prop_dir);
 	}
 
-	synaptics_rmi4_irq_enable(rmi4_data, false);
+	synaptics_rmi4_irq_enable(rmi4_data, false, false);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	unregister_early_suspend(&rmi4_data->early_suspend);
@@ -2898,7 +2903,7 @@ static void synaptics_rmi4_early_suspend(struct early_suspend *h)
 	if (rmi4_data->stay_awake)
 		return;
 
-	synaptics_rmi4_irq_enable(rmi4_data, false);
+	synaptics_rmi4_irq_enable(rmi4_data, false, false);
 	synaptics_rmi4_sensor_sleep(rmi4_data);
 	synaptics_rmi4_free_fingers(rmi4_data);
 
@@ -2931,7 +2936,7 @@ static void synaptics_rmi4_late_resume(struct early_suspend *h)
 
 	if (rmi4_data->sensor_sleep == true) {
 		synaptics_rmi4_sensor_wake(rmi4_data);
-		synaptics_rmi4_irq_enable(rmi4_data, true);
+		synaptics_rmi4_irq_enable(rmi4_data, true, false);
 	}
 
 	mutex_lock(&exp_data.mutex);
@@ -2955,7 +2960,7 @@ static int synaptics_rmi4_suspend(struct device *dev)
 		return 0;
 
 	if (!rmi4_data->sensor_sleep) {
-		synaptics_rmi4_irq_enable(rmi4_data, false);
+		synaptics_rmi4_irq_enable(rmi4_data, false, false);
 		synaptics_rmi4_sensor_sleep(rmi4_data);
 		synaptics_rmi4_free_fingers(rmi4_data);
 	}
@@ -2993,7 +2998,7 @@ static int synaptics_rmi4_resume(struct device *dev)
 	}
 
 	synaptics_rmi4_sensor_wake(rmi4_data);
-	synaptics_rmi4_irq_enable(rmi4_data, true);
+	synaptics_rmi4_irq_enable(rmi4_data, true, false);
 
 	mutex_lock(&exp_data.mutex);
 	if (!list_empty(&exp_data.list)) {

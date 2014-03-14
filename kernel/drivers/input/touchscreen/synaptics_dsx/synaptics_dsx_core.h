@@ -226,8 +226,8 @@ struct synaptics_rmi4_device_info {
  * @fingers_on_2d: flag to indicate presence of fingers in 2D area
  * @sensor_sleep: flag to indicate sleep state of sensor
  * @stay_awake: flag to indicate whether to stay awake during suspend
- * @irq_enable: pointer to interrupt enable function
  * @reset_device: pointer to device reset function
+ * @irq_enable: pointer to interrupt enable function
  */
 struct synaptics_rmi4_data {
 	struct platform_device *pdev;
@@ -268,8 +268,9 @@ struct synaptics_rmi4_data {
 	bool fingers_on_2d;
 	bool sensor_sleep;
 	bool stay_awake;
-	int (*irq_enable)(struct synaptics_rmi4_data *rmi4_data, bool enable);
 	int (*reset_device)(struct synaptics_rmi4_data *rmi4_data);
+	int (*irq_enable)(struct synaptics_rmi4_data *rmi4_data, bool enable,
+			bool attn_only);
 };
 
 struct synaptics_dsx_bus_access {
