@@ -1559,7 +1559,7 @@ static int synaptics_rmi4_f1a_button_map(struct synaptics_rmi4_data *rmi4_data,
 		retval = synaptics_rmi4_reg_read(rmi4_data,
 				fhandler->full_addr.ctrl_base + mapping_offset,
 				f1a->button_control.txrx_map,
-				sizeof(f1a->button_control.txrx_map));
+				f1a->max_count * 2);
 		if (retval < 0) {
 			dev_err(rmi4_data->pdev->dev.parent,
 					"%s: Failed to read tx rx mapping\n",
