@@ -496,6 +496,7 @@ store_prototype(resume_touch)
 show_store_prototype(report_type)
 show_store_prototype(fifoindex)
 show_store_prototype(no_auto_cal)
+show_store_prototype(read_report)
 
 static struct attribute *attrs[] = {
 	attrify(num_of_mapped_tx),
@@ -511,6 +512,7 @@ static struct attribute *attrs[] = {
 	attrify(report_type),
 	attrify(fifoindex),
 	attrify(no_auto_cal),
+	attrify(read_report),
 	NULL,
 };
 
@@ -1282,6 +1284,264 @@ static ssize_t test_sysfs_no_auto_cal_store(struct device *dev,
 	f54->no_auto_cal = (setting == 1);
 
 	return count;
+}
+
+static ssize_t test_sysfs_read_report_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	unsigned int ii;
+	unsigned int jj;
+	int cnt;
+	int count = 0;
+	int tx_num = f54->tx_assigned;
+	int rx_num = f54->rx_assigned;
+	char *report_data_8;
+	short *report_data_16;
+	int *report_data_32;
+	unsigned int *report_data_u32;
+
+	switch (f54->report_type) {
+	case F54_8BIT_IMAGE:
+		report_data_8 = (char *)f54->report_data;
+		for (ii = 0; ii < f54->report_size; ii++) {
+			cnt = snprintf(buf, PAGE_SIZE - count, "%03d: %d\n",
+					ii, *report_data_8);
+			report_data_8++;
+			buf += cnt;
+			count += cnt;
+		}
+		break;
+	case F54_16BIT_IMAGE:
+	case F54_RAW_16BIT_IMAGE:
+	case F54_TRUE_BASELINE:
+	case F54_FULL_RAW_CAP:
+	case F54_FULL_RAW_CAP_NO_RX_COUPLING:
+	case F54_SENSOR_SPEED:
+		report_data_16 = (short *)f54->report_data;
+		cnt = snprintf(buf, PAGE_SIZE - count, "tx = %d\nrx = %d\n",
+				tx_num, rx_num);
+		buf += cnt;
+		count += cnt;
+
+		for (ii = 0; ii < tx_num; ii++) {
+			for (jj = 0; jj < (rx_num - 1); jj++) {
+				cnt = snprintf(buf, PAGE_SIZE - count, "%-4d ",
+						*report_data_16);
+				report_data_16++;
+				buf += cnt;
+				count += cnt;
+			}
+			cnt = snprintf(buf, PAGE_SIZE - count, "%-4d\n",
+					*report_data_16);
+			buf += cnt;
+			count += cnt;
+		}
+		break;
+	case F54_HIGH_RESISTANCE:
+	case F54_FULL_RAW_CAP_MIN_MAX:
+		report_data_16 = (short *)f54->report_data;
+		for (ii = 0; ii < f54->report_size; ii += 2) {
+			cnt = snprintf(buf, PAGE_SIZE - count, "%03d: %d\n",
+					ii / 2, *report_data_16);
+			report_data_16++;
+			buf += cnt;
+			count += cnt;
+		}
+		break;
+	case F54_ABS_RAW_CAP:
+		report_data_u32 = (unsigned int *)f54->report_data;
+		cnt = snprintf(buf, PAGE_SIZE - count, "rx ");
+		buf += cnt;
+		count += cnt;
+		for (ii = 0; ii < rx_num; ii++) {
+			cnt = snprintf(buf, PAGE_SIZE - count, "     %2d", ii);
+			buf += cnt;
+			count += cnt;
+		}
+		cnt = snprintf(buf, PAGE_SIZE - count, "\n");
+		buf += cnt;
+		count += cnt;
+
+		cnt = snprintf(buf, PAGE_SIZE - count, "   ");
+		buf += cnt;
+		count += cnt;
+		for (ii = 0; ii < rx_num; ii++) {
+			cnt = snprintf(buf, PAGE_SIZE - count, "  %5u",
+					*report_data_u32);
+			report_data_u32++;
+			buf += cnt;
+			count += cnt;
+		}
+		cnt = snprintf(buf, PAGE_SIZE - count, "\n");
+		buf += cnt;
+		count += cnt;
+
+		cnt = snprintf(buf, PAGE_SIZE - count, "tx ");
+		buf += cnt;
+		count += cnt;
+		for (ii = 0; ii < tx_num; ii++) {
+			cnt = snprintf(buf, PAGE_SIZE - count, "     %2d", ii);
+			buf += cnt;
+			count += cnt;
+		}
+		cnt = snprintf(buf, PAGE_SIZE - count, "\n");
+		buf += cnt;
+		count += cnt;
+
+		cnt = snprintf(buf, PAGE_SIZE - count, "   ");
+		buf += cnt;
+		count += cnt;
+		for (ii = 0; ii < tx_num; ii++) {
+			cnt = snprintf(buf, PAGE_SIZE - count, "  %5u",
+					*report_data_u32);
+			report_data_u32++;
+			buf += cnt;
+			count += cnt;
+		}
+		cnt = snprintf(buf, PAGE_SIZE - count, "\n");
+		buf += cnt;
+		count += cnt;
+		break;
+	case F54_ABS_DELTA_CAP:
+		report_data_32 = (int *)f54->report_data;
+		cnt = snprintf(buf, PAGE_SIZE - count, "rx ");
+		buf += cnt;
+		count += cnt;
+		for (ii = 0; ii < rx_num; ii++) {
+			cnt = snprintf(buf, PAGE_SIZE - count, "     %2d", ii);
+			buf += cnt;
+			count += cnt;
+		}
+		cnt = snprintf(buf, PAGE_SIZE - count, "\n");
+		buf += cnt;
+		count += cnt;
+
+		cnt = snprintf(buf, PAGE_SIZE - count, "   ");
+		buf += cnt;
+		count += cnt;
+		for (ii = 0; ii < rx_num; ii++) {
+			cnt = snprintf(buf, PAGE_SIZE - count, "  %5d",
+					*report_data_32);
+			report_data_32++;
+			buf += cnt;
+			count += cnt;
+		}
+		cnt = snprintf(buf, PAGE_SIZE - count, "\n");
+		buf += cnt;
+		count += cnt;
+
+		cnt = snprintf(buf, PAGE_SIZE - count, "tx ");
+		buf += cnt;
+		count += cnt;
+		for (ii = 0; ii < tx_num; ii++) {
+			cnt = snprintf(buf, PAGE_SIZE - count, "     %2d", ii);
+			buf += cnt;
+			count += cnt;
+		}
+		cnt = snprintf(buf, PAGE_SIZE - count, "\n");
+		buf += cnt;
+		count += cnt;
+
+		cnt = snprintf(buf, PAGE_SIZE - count, "   ");
+		buf += cnt;
+		count += cnt;
+		for (ii = 0; ii < tx_num; ii++) {
+			cnt = snprintf(buf, PAGE_SIZE - count, "  %5d",
+					*report_data_32);
+			report_data_32++;
+			buf += cnt;
+			count += cnt;
+		}
+		cnt = snprintf(buf, PAGE_SIZE - count, "\n");
+		buf += cnt;
+		count += cnt;
+		break;
+	default:
+		for (ii = 0; ii < f54->report_size; ii++) {
+			cnt = snprintf(buf, PAGE_SIZE - count, "%03d: 0x%02x\n",
+					ii, f54->report_data[ii]);
+			buf += cnt;
+			count += cnt;
+		}
+		break;
+	}
+
+	snprintf(buf, PAGE_SIZE - count, "\n");
+	count++;
+
+	return count;
+}
+
+static ssize_t test_sysfs_read_report_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int retval;
+	unsigned char timeout = GET_REPORT_TIMEOUT_S * 10;
+	unsigned char timeout_count;
+	const char cmd[] = {'1', 0};
+	struct synaptics_rmi4_data *rmi4_data = f54->rmi4_data;
+
+	retval = test_sysfs_report_type_store(dev, attr, buf, count);
+	if (retval < 0)
+		goto exit;
+
+	switch (f54->report_type) {
+	case F54_16BIT_IMAGE:
+	case F54_RAW_16BIT_IMAGE:
+	case F54_SENSOR_SPEED:
+	case F54_ADC_RANGE:
+	case F54_ABS_RAW_CAP:
+	case F54_ABS_DELTA_CAP:
+		break;
+	default:
+		retval = test_sysfs_do_preparation_store(dev, attr, cmd, 1);
+		if (retval < 0)
+			goto exit;
+		break;
+	}
+
+	retval = test_sysfs_get_report_store(dev, attr, cmd, 1);
+	if (retval < 0)
+		goto exit;
+
+	timeout_count = 0;
+	do {
+		if (f54->status != STATUS_BUSY)
+			break;
+		msleep(100);
+		timeout_count++;
+	} while (timeout_count < timeout);
+
+	if ((f54->status != STATUS_IDLE) || (f54->report_size == 0)) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to read report\n",
+				__func__);
+		retval = -EINVAL;
+		goto exit;
+	}
+
+	switch (f54->report_type) {
+	case F54_16BIT_IMAGE:
+	case F54_RAW_16BIT_IMAGE:
+	case F54_SENSOR_SPEED:
+	case F54_ADC_RANGE:
+	case F54_ABS_RAW_CAP:
+	case F54_ABS_DELTA_CAP:
+		retval = test_sysfs_resume_touch_store(dev, attr, cmd, 1);
+		if (retval < 0)
+			goto exit;
+		break;
+	default:
+		rmi4_data->reset_device(rmi4_data);
+		break;
+	}
+
+	return count;
+
+exit:
+	rmi4_data->reset_device(rmi4_data);
+
+	return retval;
 }
 
 static ssize_t test_sysfs_data_read(struct file *data_file,
@@ -2095,13 +2355,61 @@ exit:
 
 static void synaptics_rmi4_test_reset(struct synaptics_rmi4_data *rmi4_data)
 {
+	int retval;
+
 	if (!f54) {
 		synaptics_rmi4_test_init(rmi4_data);
 		return;
 	}
 
-	synaptics_rmi4_test_remove(rmi4_data);
-	synaptics_rmi4_test_init(rmi4_data);
+	if (f55) {
+		kfree(f55->tx_assignment);
+		kfree(f55->rx_assignment);
+	}
+
+	test_free_control_mem();
+
+	kfree(f55);
+	f55 = NULL;
+
+	retval = test_scan_pdt();
+	if (retval < 0)
+		goto exit_free_mem;
+
+	retval = test_set_queries();
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to read f54 query registers\n",
+				__func__);
+		goto exit_free_mem;
+	}
+
+	f54->tx_assigned = f54->query.num_of_tx_electrodes;
+	f54->rx_assigned = f54->query.num_of_rx_electrodes;
+
+	retval = test_set_controls();
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to set up f54 control registers\n",
+				__func__);
+		goto exit_free_control;
+	}
+
+	if (f55)
+		test_f55_init(rmi4_data);
+
+	f54->status = STATUS_IDLE;
+
+	return;
+
+exit_free_control:
+	test_free_control_mem();
+
+exit_free_mem:
+	kfree(f55);
+	f55 = NULL;
+	kfree(f54);
+	f54 = NULL;
 
 	return;
 }
