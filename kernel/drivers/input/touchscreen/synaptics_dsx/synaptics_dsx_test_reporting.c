@@ -1333,6 +1333,7 @@ static ssize_t test_sysfs_read_report_show(struct device *dev,
 			}
 			cnt = snprintf(buf, PAGE_SIZE - count, "%-4d\n",
 					*report_data_16);
+			report_data_16++;
 			buf += cnt;
 			count += cnt;
 		}
