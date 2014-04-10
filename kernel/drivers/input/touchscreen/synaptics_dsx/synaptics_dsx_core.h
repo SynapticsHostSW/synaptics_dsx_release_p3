@@ -327,7 +327,7 @@ void synaptics_rmi4_bus_exit(void);
 void synaptics_rmi4_new_function(struct synaptics_rmi4_exp_fn *exp_fn_module,
 		bool insert);
 
-int synaptics_fw_updater(unsigned char *fw_data);
+int synaptics_fw_updater(const unsigned char *fw_data);
 
 static inline int synaptics_rmi4_reg_read(
 		struct synaptics_rmi4_data *rmi4_data,
