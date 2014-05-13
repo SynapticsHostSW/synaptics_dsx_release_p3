@@ -261,6 +261,15 @@ static ssize_t rmidev_sysfs_open_store(struct device *dev,
 	if (input != 1)
 		return -EINVAL;
 
+	if (rmi4_data->sensor_sleep) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Sensor sleeping\n",
+				__func__);
+		return -ENODEV;
+	}
+
+	rmi4_data->stay_awake = true;
+
 	rmi4_data->irq_enable(rmi4_data, false, false);
 	rmidev_sysfs_irq_enable(rmi4_data, true);
 
@@ -291,6 +300,8 @@ static ssize_t rmidev_sysfs_release_store(struct device *dev,
 			__func__);
 
 	rmi4_data->reset_device(rmi4_data);
+
+	rmi4_data->stay_awake = false;
 
 	return count;
 }
@@ -530,6 +541,15 @@ static int rmidev_open(struct inode *inp, struct file *filp)
 	if (!dev_data)
 		return -EACCES;
 
+	if (rmi4_data->sensor_sleep) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Sensor sleeping\n",
+				__func__);
+		return -ENODEV;
+	}
+
+	rmi4_data->stay_awake = true;
+
 	filp->private_data = dev_data;
 
 	mutex_lock(&(dev_data->file_mutex));
@@ -572,6 +592,8 @@ static int rmidev_release(struct inode *inp, struct file *filp)
 	mutex_unlock(&(dev_data->file_mutex));
 
 	rmi4_data->reset_device(rmi4_data);
+
+	rmi4_data->stay_awake = false;
 
 	return 0;
 }
