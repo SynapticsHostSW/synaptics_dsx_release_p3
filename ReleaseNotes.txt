@@ -2,6 +2,17 @@
 //  Synaptics DSX Driver
 ///////////////////////////////////////////////////////////
 
+v2.3 May 22, 2014 scott.lin@tw.synaptics.com
+   - Add support for retrieving battery state and pen ID information in active pen module
+   - Add support for virtual buttons
+   - Disable all interrupt sources explicitly before entering bootloader mode
+   - Add IRQF_ONESHOT interrupt flag
+   - Add sysfs attribute for specifying and reading test reports in optional test reporting module
+   - Add support for wakeup gestures
+   - Add support for new image file format (0x10 header version)
+   - Add synaptics,irq-on-state device tree property
+   - Keep touch controller awake during RED Remote sessions
+
 v2.2 Feb 19, 2014 scott.lin@tw.synaptics.com
    - Remove touch_stopped flag to fix no touch issue caused by touching sensor during reset
    - Add support for gloved finger reporting
