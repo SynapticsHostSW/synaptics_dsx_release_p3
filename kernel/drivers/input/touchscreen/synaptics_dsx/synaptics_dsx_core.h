@@ -240,6 +240,7 @@ struct synaptics_rmi4_device_info {
  * @f11_wakeup_gesture: flag to indicate support for wakeup gestures in F$11
  * @f12_wakeup_gesture: flag to indicate support for wakeup gestures in F$12
  * @enable_wakeup_gesture: flag to indicate usage of wakeup gestures
+ * @wedge_sensor: flag to indicate use of wedge sensor
  * @reset_device: pointer to device reset function
  * @irq_enable: pointer to interrupt enable function
  */
@@ -286,6 +287,7 @@ struct synaptics_rmi4_data {
 	bool f11_wakeup_gesture;
 	bool f12_wakeup_gesture;
 	bool enable_wakeup_gesture;
+	bool wedge_sensor;
 	int (*reset_device)(struct synaptics_rmi4_data *rmi4_data);
 	int (*irq_enable)(struct synaptics_rmi4_data *rmi4_data, bool enable,
 			bool attn_only);

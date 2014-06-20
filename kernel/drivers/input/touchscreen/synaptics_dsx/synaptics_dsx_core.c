@@ -63,6 +63,7 @@
 
 #define EXP_FN_WORK_DELAY_MS 1000 /* ms */
 #define MAX_F11_TOUCH_WIDTH 15
+#define MAX_F12_TOUCH_WIDTH 255
 
 #define CHECK_STATUS_TIMEOUT_MS 100
 
@@ -406,6 +407,26 @@ struct synaptics_rmi4_f12_ctrl_23 {
 			unsigned char max_reported_objects;
 		};
 		unsigned char data[2];
+	};
+};
+
+struct synaptics_rmi4_f12_ctrl_31 {
+	union {
+		struct {
+			unsigned char max_x_coord_lsb;
+			unsigned char max_x_coord_msb;
+			unsigned char max_y_coord_lsb;
+			unsigned char max_y_coord_msb;
+			unsigned char rx_pitch_lsb;
+			unsigned char rx_pitch_msb;
+			unsigned char rx_clip_low;
+			unsigned char rx_clip_high;
+			unsigned char wedge_clip_low;
+			unsigned char wedge_clip_high;
+			unsigned char num_of_p;
+			unsigned char num_of_q;
+		};
+		unsigned char data[12];
 	};
 };
 
@@ -1060,10 +1081,19 @@ static int synaptics_rmi4_f12_abs_report(struct synaptics_rmi4_data *rmi4_data,
 			input_report_abs(rmi4_data->input_dev,
 					ABS_MT_POSITION_Y, y);
 #ifdef REPORT_2D_W
-			input_report_abs(rmi4_data->input_dev,
-					ABS_MT_TOUCH_MAJOR, max(wx, wy));
-			input_report_abs(rmi4_data->input_dev,
-					ABS_MT_TOUCH_MINOR, min(wx, wy));
+			if (rmi4_data->wedge_sensor) {
+				input_report_abs(rmi4_data->input_dev,
+						ABS_MT_TOUCH_MAJOR, wx);
+				input_report_abs(rmi4_data->input_dev,
+						ABS_MT_TOUCH_MINOR, wx);
+			} else {
+				input_report_abs(rmi4_data->input_dev,
+						ABS_MT_TOUCH_MAJOR,
+						max(wx, wy));
+				input_report_abs(rmi4_data->input_dev,
+						ABS_MT_TOUCH_MINOR,
+						min(wx, wy));
+			}
 #endif
 #ifndef TYPE_B_PROTOCOL
 			input_mt_sync(rmi4_data->input_dev);
@@ -1719,12 +1749,14 @@ static int synaptics_rmi4_f12_init(struct synaptics_rmi4_data *rmi4_data,
 	unsigned char ctrl_20_offset;
 	unsigned char ctrl_23_offset;
 	unsigned char ctrl_28_offset;
+	unsigned char ctrl_31_offset;
 	unsigned char num_of_fingers;
 	struct synaptics_rmi4_f12_extra_data *extra_data;
 	struct synaptics_rmi4_f12_query_5 query_5;
 	struct synaptics_rmi4_f12_query_8 query_8;
 	struct synaptics_rmi4_f12_ctrl_8 ctrl_8;
 	struct synaptics_rmi4_f12_ctrl_23 ctrl_23;
+	struct synaptics_rmi4_f12_ctrl_31 ctrl_31;
 
 	fhandler->fn_number = fd->fn_number;
 	fhandler->num_of_data_sources = fd->intr_src_count;
@@ -1773,6 +1805,11 @@ static int synaptics_rmi4_f12_init(struct synaptics_rmi4_data *rmi4_data,
 			query_5.ctrl25_is_present +
 			query_5.ctrl26_is_present +
 			query_5.ctrl27_is_present;
+
+	ctrl_31_offset = ctrl_28_offset +
+			query_5.ctrl28_is_present +
+			query_5.ctrl29_is_present +
+			query_5.ctrl30_is_present;
 
 	retval = synaptics_rmi4_reg_read(rmi4_data,
 			fhandler->full_addr.ctrl_base + ctrl_23_offset,
@@ -1839,30 +1876,51 @@ static int synaptics_rmi4_f12_init(struct synaptics_rmi4_data *rmi4_data,
 	if (retval < 0)
 		return retval;
 
-	retval = synaptics_rmi4_reg_read(rmi4_data,
-			fhandler->full_addr.ctrl_base + ctrl_8_offset,
-			ctrl_8.data,
-			sizeof(ctrl_8.data));
-	if (retval < 0)
-		return retval;
+	if (query_5.ctrl8_is_present) {
+		rmi4_data->wedge_sensor = false;
 
-	/* Maximum x and y */
-	rmi4_data->sensor_max_x =
-			((unsigned short)ctrl_8.max_x_coord_lsb << 0) |
-			((unsigned short)ctrl_8.max_x_coord_msb << 8);
-	rmi4_data->sensor_max_y =
-			((unsigned short)ctrl_8.max_y_coord_lsb << 0) |
-			((unsigned short)ctrl_8.max_y_coord_msb << 8);
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				fhandler->full_addr.ctrl_base + ctrl_8_offset,
+				ctrl_8.data,
+				sizeof(ctrl_8.data));
+		if (retval < 0)
+			return retval;
+
+		/* Maximum x and y */
+		rmi4_data->sensor_max_x =
+				((unsigned short)ctrl_8.max_x_coord_lsb << 0) |
+				((unsigned short)ctrl_8.max_x_coord_msb << 8);
+		rmi4_data->sensor_max_y =
+				((unsigned short)ctrl_8.max_y_coord_lsb << 0) |
+				((unsigned short)ctrl_8.max_y_coord_msb << 8);
+
+		rmi4_data->max_touch_width = MAX_F12_TOUCH_WIDTH;
+	} else {
+		rmi4_data->wedge_sensor = true;
+
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				fhandler->full_addr.ctrl_base + ctrl_31_offset,
+				ctrl_31.data,
+				sizeof(ctrl_31.data));
+		if (retval < 0)
+			return retval;
+
+		/* Maximum x and y */
+		rmi4_data->sensor_max_x =
+				((unsigned short)ctrl_31.max_x_coord_lsb << 0) |
+				((unsigned short)ctrl_31.max_x_coord_msb << 8);
+		rmi4_data->sensor_max_y =
+				((unsigned short)ctrl_31.max_y_coord_lsb << 0) |
+				((unsigned short)ctrl_31.max_y_coord_msb << 8);
+
+		rmi4_data->max_touch_width = MAX_F12_TOUCH_WIDTH;
+	}
+
 	dev_dbg(rmi4_data->pdev->dev.parent,
 			"%s: Function %02x max x = %d max y = %d\n",
 			__func__, fhandler->fn_number,
 			rmi4_data->sensor_max_x,
 			rmi4_data->sensor_max_y);
-
-	rmi4_data->num_of_rx = ctrl_8.num_of_rx;
-	rmi4_data->num_of_tx = ctrl_8.num_of_tx;
-	rmi4_data->max_touch_width = max(rmi4_data->num_of_rx,
-			rmi4_data->num_of_tx);
 
 	rmi4_data->f12_wakeup_gesture = query_5.ctrl27_is_present;
 	if (rmi4_data->f12_wakeup_gesture) {
@@ -2376,7 +2434,7 @@ flash_prog_mode:
 	rmi->product_props = f01_query[1];
 	rmi->product_info[0] = f01_query[2];
 	rmi->product_info[1] = f01_query[3];
-	memcpy(rmi->product_id_string, &f01_query[11], 10);
+	memcpy(rmi->product_id_string, &f01_query[11], PRODUCT_ID_SIZE);
 
 	if (rmi->manufacturer_id != 1) {
 		dev_err(rmi4_data->pdev->dev.parent,
