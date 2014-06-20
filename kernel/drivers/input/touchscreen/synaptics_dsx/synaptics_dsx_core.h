@@ -57,9 +57,9 @@
 #define SYNAPTICS_RMI4_F55 (0x55)
 #define SYNAPTICS_RMI4_FDB (0xdb)
 
-#define SYNAPTICS_RMI4_PRODUCT_INFO_SIZE 2
-#define SYNAPTICS_RMI4_PRODUCT_ID_SIZE 10
-#define SYNAPTICS_RMI4_BUILD_ID_SIZE 3
+#define PRODUCT_INFO_SIZE 2
+#define PRODUCT_ID_SIZE 10
+#define BUILD_ID_SIZE 3
 
 #define F12_FINGERS_TO_SUPPORT 10
 #define F12_NO_OBJECT_STATUS 0x00
@@ -192,9 +192,9 @@ struct synaptics_rmi4_device_info {
 	unsigned int version_minor;
 	unsigned char manufacturer_id;
 	unsigned char product_props;
-	unsigned char product_info[SYNAPTICS_RMI4_PRODUCT_INFO_SIZE];
-	unsigned char product_id_string[SYNAPTICS_RMI4_PRODUCT_ID_SIZE + 1];
-	unsigned char build_id[SYNAPTICS_RMI4_BUILD_ID_SIZE];
+	unsigned char product_info[PRODUCT_INFO_SIZE];
+	unsigned char product_id_string[PRODUCT_ID_SIZE + 1];
+	unsigned char build_id[BUILD_ID_SIZE];
 	struct list_head support_fn_list;
 };
 

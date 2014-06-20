@@ -309,10 +309,10 @@ struct image_header_05_06 {
 	unsigned char firmware_size[4];
 	unsigned char config_size[4];
 	/* 0x10 - 0x1f */
-	unsigned char product_id[SYNAPTICS_RMI4_PRODUCT_ID_SIZE];
+	unsigned char product_id[PRODUCT_ID_SIZE];
 	unsigned char package_id[2];
 	unsigned char package_id_revision[2];
-	unsigned char product_info[SYNAPTICS_RMI4_PRODUCT_INFO_SIZE];
+	unsigned char product_info[PRODUCT_INFO_SIZE];
 	/* 0x20 - 0x2f */
 	unsigned char bootloader_addr[4];
 	unsigned char bootloader_size[4];
@@ -321,9 +321,17 @@ struct image_header_05_06 {
 	/* 0x30 - 0x3f */
 	unsigned char ds_id[16];
 	/* 0x40 - 0x4f */
-	unsigned char dsp_cfg_addr[4];
-	unsigned char dsp_cfg_size[4];
-	unsigned char reserved_48_4f[8];
+	union {
+		struct {
+			unsigned char cstmr_product_id[PRODUCT_ID_SIZE];
+			unsigned char reserved_4a_4f[6];
+		};
+		struct {
+			unsigned char dsp_cfg_addr[4];
+			unsigned char dsp_cfg_size[4];
+			unsigned char reserved_48_4f[8];
+		};
+	};
 	/* 0x50 - 0x53 */
 	unsigned char firmware_id[4];
 };
@@ -346,6 +354,8 @@ struct image_metadata {
 	unsigned char bl_version;
 	unsigned char *image_name;
 	const unsigned char *image;
+	unsigned char product_id[PRODUCT_ID_SIZE + 1];
+	unsigned char cstmr_product_id[PRODUCT_ID_SIZE + 1];
 	struct block_data ui_firmware;
 	struct block_data ui_config;
 	struct block_data disp_config;
@@ -568,7 +578,15 @@ static void fwu_parse_image_header_05_06(void)
 		fwu->img.disp_config_offset = le_to_uint(header->dsp_cfg_addr);
 		fwu->img.disp_config.size = le_to_uint(header->dsp_cfg_size);
 		fwu->img.disp_config.data = image + fwu->img.disp_config_offset;
+	} else {
+		fwu->img.contains_disp_config = false;
+		memcpy(fwu->img.cstmr_product_id, header->cstmr_product_id,
+				PRODUCT_ID_SIZE);
+		fwu->img.cstmr_product_id[PRODUCT_ID_SIZE] = 0;
 	}
+
+	memcpy(fwu->img.product_id, header->product_id, PRODUCT_ID_SIZE);
+	fwu->img.product_id[PRODUCT_ID_SIZE] = 0;
 
 	fwu->img.lockdown.size = LOCKDOWN_SIZE;
 	fwu->img.lockdown.data = image + IMAGE_AREA_OFFSET - LOCKDOWN_SIZE;
