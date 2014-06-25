@@ -1038,6 +1038,31 @@ static int synaptics_rmi4_f12_abs_report(struct synaptics_rmi4_data *rmi4_data,
 		finger_data = data + finger;
 		finger_status = finger_data->object_type_and_status;
 
+#ifdef F12_DATA_15_WORKAROUND
+		fingers_already_present = finger + 1;
+#endif
+
+		x = (finger_data->x_msb << 8) | (finger_data->x_lsb);
+		y = (finger_data->y_msb << 8) | (finger_data->y_lsb);
+#ifdef REPORT_2D_W
+		wx = finger_data->wx;
+		wy = finger_data->wy;
+#endif
+
+		if (rmi4_data->hw_if->board_data->swap_axes) {
+			temp = x;
+			x = y;
+			y = temp;
+			temp = wx;
+			wx = wy;
+			wy = temp;
+		}
+
+		if (rmi4_data->hw_if->board_data->x_flip)
+			x = rmi4_data->sensor_max_x - x;
+		if (rmi4_data->hw_if->board_data->y_flip)
+			y = rmi4_data->sensor_max_y - y;
+
 		switch (finger_status) {
 		case F12_FINGER_STATUS:
 		case F12_GLOVED_FINGER_STATUS:
@@ -1046,31 +1071,6 @@ static int synaptics_rmi4_f12_abs_report(struct synaptics_rmi4_data *rmi4_data,
 			input_mt_report_slot_state(rmi4_data->input_dev,
 					MT_TOOL_FINGER, 1);
 #endif
-
-#ifdef F12_DATA_15_WORKAROUND
-			fingers_already_present = finger + 1;
-#endif
-
-			x = (finger_data->x_msb << 8) | (finger_data->x_lsb);
-			y = (finger_data->y_msb << 8) | (finger_data->y_lsb);
-#ifdef REPORT_2D_W
-			wx = finger_data->wx;
-			wy = finger_data->wy;
-#endif
-
-			if (rmi4_data->hw_if->board_data->swap_axes) {
-				temp = x;
-				x = y;
-				y = temp;
-				temp = wx;
-				wx = wy;
-				wy = temp;
-			}
-
-			if (rmi4_data->hw_if->board_data->x_flip)
-				x = rmi4_data->sensor_max_x - x;
-			if (rmi4_data->hw_if->board_data->y_flip)
-				y = rmi4_data->sensor_max_y - y;
 
 			input_report_key(rmi4_data->input_dev,
 					BTN_TOUCH, 1);
@@ -1111,6 +1111,16 @@ static int synaptics_rmi4_f12_abs_report(struct synaptics_rmi4_data *rmi4_data,
 					x, y, wx, wy);
 
 			touch_count++;
+			break;
+		case F12_PALM_STATUS:
+			dev_dbg(rmi4_data->pdev->dev.parent,
+					"%s: Finger %d:\n"
+					"x = %d\n"
+					"y = %d\n"
+					"wx = %d\n"
+					"wy = %d\n",
+					__func__, finger,
+					x, y, wx, wy);
 			break;
 		default:
 #ifdef TYPE_B_PROTOCOL
