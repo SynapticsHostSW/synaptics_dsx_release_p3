@@ -832,6 +832,12 @@ static int fwu_read_f34_flash_status(void)
 	else if (fwu->bl_version == V6)
 		fwu->flash_status = status & MASK_3BIT;
 
+	if (fwu->flash_status != 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Flash status = %d\n",
+				__func__, fwu->flash_status);
+	}
+
 	retval = synaptics_rmi4_reg_read(rmi4_data,
 			fwu->f34_fd.data_base_addr + fwu->off.flash_cmd,
 			&command,
