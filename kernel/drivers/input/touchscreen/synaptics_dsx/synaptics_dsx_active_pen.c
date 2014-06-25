@@ -207,12 +207,12 @@ static void apen_report(void)
 	input_sync(apen->apen_dev);
 
 	dev_dbg(rmi4_data->pdev->dev.parent,
-			"%s: Active pen:\n"
-			"status = %d\n"
-			"invert = %d\n"
-			"barrel = %d\n"
-			"x = %d\n"
-			"y = %d\n"
+			"%s: Active pen: "
+			"status = %d, "
+			"invert = %d, "
+			"barrel = %d, "
+			"x = %d, "
+			"y = %d, "
 			"pressure = %d\n",
 			__func__,
 			apen->apen_data->status_pen,

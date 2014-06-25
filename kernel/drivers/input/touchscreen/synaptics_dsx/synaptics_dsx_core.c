@@ -904,11 +904,11 @@ static int synaptics_rmi4_f11_abs_report(struct synaptics_rmi4_data *rmi4_data,
 #endif
 
 			dev_dbg(rmi4_data->pdev->dev.parent,
-					"%s: Finger %d:\n"
-					"status = 0x%02x\n"
-					"x = %d\n"
-					"y = %d\n"
-					"wx = %d\n"
+					"%s: Finger %d: "
+					"status = 0x%02x, "
+					"x = %d, "
+					"y = %d, "
+					"wx = %d, "
 					"wy = %d\n",
 					__func__, finger,
 					finger_status,
@@ -1100,11 +1100,11 @@ static int synaptics_rmi4_f12_abs_report(struct synaptics_rmi4_data *rmi4_data,
 #endif
 
 			dev_dbg(rmi4_data->pdev->dev.parent,
-					"%s: Finger %d:\n"
-					"status = 0x%02x\n"
-					"x = %d\n"
-					"y = %d\n"
-					"wx = %d\n"
+					"%s: Finger %d: "
+					"status = 0x%02x, "
+					"x = %d, "
+					"y = %d, "
+					"wx = %d, "
 					"wy = %d\n",
 					__func__, finger,
 					finger_status,
@@ -1114,10 +1114,10 @@ static int synaptics_rmi4_f12_abs_report(struct synaptics_rmi4_data *rmi4_data,
 			break;
 		case F12_PALM_STATUS:
 			dev_dbg(rmi4_data->pdev->dev.parent,
-					"%s: Finger %d:\n"
-					"x = %d\n"
-					"y = %d\n"
-					"wx = %d\n"
+					"%s: Finger %d: "
+					"x = %d, "
+					"y = %d, "
+					"wx = %d, "
 					"wy = %d\n",
 					__func__, finger,
 					x, y, wx, wy);
