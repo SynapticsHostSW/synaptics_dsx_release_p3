@@ -1295,7 +1295,8 @@ static void synaptics_rmi4_report_touch(struct synaptics_rmi4_data *rmi4_data,
 	return;
 }
 
-static void synaptics_rmi4_sensor_report(struct synaptics_rmi4_data *rmi4_data)
+static void synaptics_rmi4_sensor_report(struct synaptics_rmi4_data *rmi4_data,
+		bool report)
 {
 	int retval;
 	unsigned char data[MAX_INTR_REGISTERS + 1];
@@ -1332,6 +1333,9 @@ static void synaptics_rmi4_sensor_report(struct synaptics_rmi4_data *rmi4_data)
 					__func__);
 		}
 	}
+
+	if (!report)
+		return;
 
 	/*
 	 * Traverse the function handler list and service the source(s)
@@ -1372,7 +1376,7 @@ static irqreturn_t synaptics_rmi4_irq(int irq, void *data)
 	if (gpio_get_value(bdata->irq_gpio) != bdata->irq_on_state)
 		goto exit;
 
-	synaptics_rmi4_sensor_report(rmi4_data);
+	synaptics_rmi4_sensor_report(rmi4_data, true);
 
 exit:
 	return IRQ_HANDLED;
@@ -1434,7 +1438,7 @@ static int synaptics_rmi4_irq_enable(struct synaptics_rmi4_data *rmi4_data,
 			return retval;
 
 		/* Process and clear interrupts */
-		synaptics_rmi4_sensor_report(rmi4_data);
+		synaptics_rmi4_sensor_report(rmi4_data, false);
 
 		retval = request_threaded_irq(rmi4_data->irq, NULL,
 				synaptics_rmi4_irq, bdata->irq_flags,
