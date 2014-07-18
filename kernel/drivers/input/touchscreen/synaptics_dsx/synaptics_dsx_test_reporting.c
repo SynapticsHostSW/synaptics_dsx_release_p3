@@ -2074,8 +2074,7 @@ static void test_f54_set_regs(struct synaptics_rmi4_data *rmi4_data,
 	f54->intr_mask = 0;
 	intr_offset = intr_count % 8;
 	for (ii = intr_offset;
-			ii < ((fd->intr_src_count & MASK_3BIT) +
-			intr_offset);
+			ii < (fd->intr_src_count + intr_offset);
 			ii++) {
 		f54->intr_mask |= 1 << ii;
 	}
@@ -2209,7 +2208,7 @@ static int test_scan_pdt(void)
 			if (f54found && f55found)
 				goto pdt_done;
 
-			intr_count += (rmi_fd.intr_src_count & MASK_3BIT);
+			intr_count += rmi_fd.intr_src_count;
 		}
 	}
 

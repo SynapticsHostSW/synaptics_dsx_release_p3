@@ -99,6 +99,7 @@ enum exp_fn {
  * @ctrl_base_addr: base address for control registers
  * @data_base_addr: base address for data registers
  * @intr_src_count: number of interrupt sources
+ * @fn_version: version of function
  * @fn_number: function number
  */
 struct synaptics_rmi4_fn_desc {
@@ -106,9 +107,12 @@ struct synaptics_rmi4_fn_desc {
 	unsigned char cmd_base_addr;
 	unsigned char ctrl_base_addr;
 	unsigned char data_base_addr;
-	unsigned char intr_src_count;
+	unsigned char intr_src_count:3;
+	unsigned char reserved_1:2;
+	unsigned char fn_version:2;
+	unsigned char reserved_2:1;
 	unsigned char fn_number;
-};
+} __packed;
 
 /*
  * synaptics_rmi4_fn_full_addr - full 16-bit base addresses

@@ -1481,8 +1481,7 @@ static void synaptics_rmi4_set_intr_mask(struct synaptics_rmi4_fn *fhandler,
 	intr_offset = intr_count % 8;
 	fhandler->intr_mask = 0;
 	for (ii = intr_offset;
-			ii < ((fd->intr_src_count & MASK_3BIT) +
-			intr_offset);
+			ii < (fd->intr_src_count + intr_offset);
 			ii++)
 		fhandler->intr_mask |= 1 << ii;
 
@@ -2412,7 +2411,7 @@ rescan_pdt:
 			}
 
 			/* Accumulate the interrupt count */
-			intr_count += (rmi_fd.intr_src_count & MASK_3BIT);
+			intr_count += rmi_fd.intr_src_count;
 
 			if (fhandler && rmi_fd.intr_src_count) {
 				list_add_tail(&fhandler->link,

@@ -364,7 +364,7 @@ static int apen_scan_pdt(void)
 				break;
 			}
 
-			intr_count += (fd.intr_src_count & MASK_3BIT);
+			intr_count += fd.intr_src_count;
 		}
 	}
 
@@ -391,8 +391,7 @@ f12_found:
 	intr_src = fd.intr_src_count;
 	intr_off = intr_count % 8;
 	for (ii = intr_off;
-			ii < ((intr_src & MASK_3BIT) +
-			intr_off);
+			ii < (intr_src + intr_off);
 			ii++) {
 		apen->intr_mask |= 1 << ii;
 	}

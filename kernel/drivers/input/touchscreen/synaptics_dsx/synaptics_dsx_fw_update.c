@@ -1083,8 +1083,7 @@ static int fwu_scan_pdt(void)
 				intr_src = rmi_fd.intr_src_count;
 				intr_off = intr_count % 8;
 				for (ii = intr_off;
-						ii < ((intr_src & MASK_3BIT) +
-						intr_off);
+						ii < (intr_src + intr_off);
 						ii++) {
 					fwu->intr_mask |= 1 << ii;
 				}
@@ -1094,7 +1093,7 @@ static int fwu_scan_pdt(void)
 			break;
 		}
 
-		intr_count += (rmi_fd.intr_src_count & MASK_3BIT);
+		intr_count += rmi_fd.intr_src_count;
 	}
 
 	if (!f01found || !f34found) {

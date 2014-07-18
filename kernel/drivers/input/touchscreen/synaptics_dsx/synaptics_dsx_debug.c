@@ -127,7 +127,7 @@ static int rmidb_scan_pdt(void)
 				goto fdb_found;
 			}
 
-			intr_count += (rmi_fd.intr_src_count & MASK_3BIT);
+			intr_count += rmi_fd.intr_src_count;
 		}
 	}
 
@@ -151,8 +151,7 @@ fdb_found:
 	rmidb->intr_mask = 0;
 	intr_offset = intr_count % 8;
 	for (ii = intr_offset;
-			ii < ((rmi_fd.intr_src_count & MASK_3BIT) +
-			intr_offset);
+			ii < (rmi_fd.intr_src_count + intr_offset);
 			ii++) {
 		rmidb->intr_mask |= 1 << ii;
 	}
