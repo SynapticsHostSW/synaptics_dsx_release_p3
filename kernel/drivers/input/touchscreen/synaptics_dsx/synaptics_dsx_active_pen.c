@@ -148,10 +148,8 @@ static void apen_report(void)
 	}
 
 	if (apen->apen_data->status_pen == 0) {
-		if (apen->apen_present) {
+		if (apen->apen_present)
 			apen_lift();
-			invert = -1;
-		}
 
 		dev_dbg(rmi4_data->pdev->dev.parent,
 				"%s: No active pen data\n",
@@ -169,6 +167,9 @@ static void apen_report(void)
 				__func__);
 		return;
 	}
+
+	if (!apen->apen_present)
+		invert = -1;
 
 	if (invert != -1 && invert != apen->apen_data->status_invert)
 		apen_lift();
