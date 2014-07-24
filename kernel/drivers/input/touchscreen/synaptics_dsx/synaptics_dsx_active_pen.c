@@ -162,9 +162,13 @@ static void apen_report(void)
 	y = (apen->apen_data->y_msb << 8) | (apen->apen_data->y_lsb);
 
 	if ((x == -1) && (y == -1)) {
+		if (apen->apen_present)
+			apen_lift();
+
 		dev_dbg(rmi4_data->pdev->dev.parent,
 				"%s: Active pen in range but no valid x & y\n",
 				__func__);
+
 		return;
 	}
 
