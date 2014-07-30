@@ -2338,11 +2338,11 @@ static void synaptics_rmi4_test_remove(struct synaptics_rmi4_data *rmi4_data)
 
 	test_free_control_mem();
 
-	kfree(f55);
-	f55 = NULL;
-
 	if (f54->data_buffer_size)
 		kfree(f54->report_data);
+
+	kfree(f55);
+	f55 = NULL;
 
 	kfree(f54);
 	f54 = NULL;
@@ -2406,8 +2406,20 @@ exit_free_control:
 	test_free_control_mem();
 
 exit_free_mem:
+	hrtimer_cancel(&f54->watchdog);
+
+	cancel_work_sync(&f54->test_report_work);
+	flush_workqueue(f54->test_report_workqueue);
+	destroy_workqueue(f54->test_report_workqueue);
+
+	test_remove_sysfs();
+
+	if (f54->data_buffer_size)
+		kfree(f54->report_data);
+
 	kfree(f55);
 	f55 = NULL;
+
 	kfree(f54);
 	f54 = NULL;
 
