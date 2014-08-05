@@ -500,7 +500,7 @@ static int synaptics_rmi4_prox_init(struct synaptics_rmi4_data *rmi4_data)
 		goto exit_free_finger_data;
 	}
 
-	prox->prox_dev->name = PLATFORM_DRIVER_NAME;
+	prox->prox_dev->name = PROXIMITY_DRIVER_NAME;
 	prox->prox_dev->phys = PROX_PHYS_NAME;
 	prox->prox_dev->id.product = SYNAPTICS_DSX_DRIVER_PRODUCT;
 	prox->prox_dev->id.version = SYNAPTICS_DSX_DRIVER_VERSION;

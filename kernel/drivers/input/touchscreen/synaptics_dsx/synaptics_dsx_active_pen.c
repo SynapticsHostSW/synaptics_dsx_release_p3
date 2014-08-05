@@ -468,7 +468,7 @@ static int synaptics_rmi4_apen_init(struct synaptics_rmi4_data *rmi4_data)
 		goto exit_free_apen_data;
 	}
 
-	apen->apen_dev->name = PLATFORM_DRIVER_NAME;
+	apen->apen_dev->name = ACTIVE_PEN_DRIVER_NAME;
 	apen->apen_dev->phys = APEN_PHYS_NAME;
 	apen->apen_dev->id.product = SYNAPTICS_DSX_DRIVER_PRODUCT;
 	apen->apen_dev->id.version = SYNAPTICS_DSX_DRIVER_VERSION;
