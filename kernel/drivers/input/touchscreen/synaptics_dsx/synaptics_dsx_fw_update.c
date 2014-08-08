@@ -2388,6 +2388,23 @@ static int fwu_check_dp_configuration_size(void)
 	return 0;
 }
 
+static int fwu_check_bl_configuration_size(void)
+{
+	unsigned short block_count;
+	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
+
+	block_count = fwu->img.bl_config.size / fwu->block_size;
+
+	if (block_count != fwu->blkcount.bl_config) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Bootloader configuration size mismatch\n",
+				__func__);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int fwu_check_guest_code_size(void)
 {
 	unsigned short block_count;
@@ -2526,32 +2543,7 @@ static int fwu_write_dp_configuration(void)
 	return fwu_write_configuration();
 }
 
-static int fwu_write_bl_configuration(void)
-{
-	fwu->config_area = BL_CONFIG_AREA;
-	fwu->config_data = fwu->img.bl_config.data;
-	fwu->config_size = fwu->img.bl_config.size;
-	fwu->config_block_count = fwu->config_size / fwu->block_size;
-
-	return fwu_write_configuration();
-}
-
-static int fwu_write_guest_code(void)
-{
-	int retval;
-	unsigned short guest_code_block_count;
-
-	guest_code_block_count = fwu->img.guest_code.size / fwu->block_size;
-
-	retval = fwu_write_f34_blocks((unsigned char *)fwu->img.guest_code.data,
-			guest_code_block_count, CMD_WRITE_GUEST_CODE);
-	if (retval < 0)
-		return retval;
-
-	return 0;
-}
-
-static int fwu_write_partition_table(void)
+static int fwu_write_flash_configuration(void)
 {
 	int retval;
 	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
@@ -2593,6 +2585,21 @@ static int fwu_write_partition_table(void)
 	return 0;
 }
 
+static int fwu_write_guest_code(void)
+{
+	int retval;
+	unsigned short guest_code_block_count;
+
+	guest_code_block_count = fwu->img.guest_code.size / fwu->block_size;
+
+	retval = fwu_write_f34_blocks((unsigned char *)fwu->img.guest_code.data,
+			guest_code_block_count, CMD_WRITE_GUEST_CODE);
+	if (retval < 0)
+		return retval;
+
+	return 0;
+}
+
 static int fwu_write_lockdown(void)
 {
 	unsigned short lockdown_block_count;
@@ -2601,6 +2608,41 @@ static int fwu_write_lockdown(void)
 
 	return fwu_write_f34_blocks((unsigned char *)fwu->img.lockdown.data,
 			lockdown_block_count, CMD_WRITE_LOCKDOWN);
+}
+
+static int fwu_write_partition_table(void)
+{
+	int retval;
+	unsigned short block_count;
+
+	block_count = fwu->blkcount.bl_config;
+	fwu->config_area = BL_CONFIG_AREA;
+	fwu->config_size = fwu->block_size * block_count;
+	kfree(fwu->read_config_buf);
+	fwu->read_config_buf = kzalloc(fwu->config_size, GFP_KERNEL);
+
+	retval = fwu_read_f34_blocks(block_count, CMD_READ_CONFIG);
+	if (retval < 0)
+		return retval;
+
+	retval = fwu_erase_configuration();
+	if (retval < 0)
+		return retval;
+
+	retval = fwu_write_flash_configuration();
+	if (retval < 0)
+		return retval;
+
+	fwu->config_area = BL_CONFIG_AREA;
+	fwu->config_data = fwu->read_config_buf;
+	fwu->config_size = fwu->img.bl_config.size;
+	fwu->config_block_count = fwu->config_size / fwu->block_size;
+
+	retval = fwu_write_configuration();
+	if (retval < 0)
+		return retval;
+
+	return 0;
 }
 
 static int fwu_do_reflash(void)
@@ -2628,6 +2670,10 @@ static int fwu_do_reflash(void)
 			if (retval < 0)
 				return retval;
 		}
+	} else {
+		retval = fwu_check_bl_configuration_size();
+		if (retval < 0)
+			return retval;
 	}
 
 	retval = fwu_erase_all();
@@ -2635,20 +2681,10 @@ static int fwu_do_reflash(void)
 		return retval;
 
 	if (fwu->new_partition_table) {
-		fwu->config_area = BL_CONFIG_AREA;
-		retval = fwu_erase_configuration();
-		if (retval < 0)
-			return retval;
-
 		retval = fwu_write_partition_table();
 		if (retval < 0)
 			return retval;
-
 		pr_notice("%s: Partition table programmed\n", __func__);
-
-		retval = fwu_write_bl_configuration();
-		if (retval < 0)
-			return retval;
 	}
 
 	retval = fwu_write_firmware();
@@ -2981,6 +3017,14 @@ static int fwu_start_reflash(void)
 	if (fwu->bl_version != fwu->img.bl_version) {
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Bootloader version mismatch\n",
+				__func__);
+		retval = -EINVAL;
+		goto exit;
+	}
+
+	if (!fwu->force_update && fwu->new_partition_table) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Partition table mismatch\n",
 				__func__);
 		retval = -EINVAL;
 		goto exit;
