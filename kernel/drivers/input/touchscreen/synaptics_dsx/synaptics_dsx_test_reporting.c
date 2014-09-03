@@ -99,6 +99,67 @@
 #define CONTROL_86_SIZE 1
 #define CONTROL_87_SIZE 1
 #define CONTROL_88_SIZE 1
+#define CONTROL_89_SIZE 1
+#define CONTROL_90_SIZE 1
+#define CONTROL_91_SIZE 1
+#define CONTROL_92_SIZE 1
+#define CONTROL_93_SIZE 1
+#define CONTROL_94_SIZE 1
+#define CONTROL_95_SIZE 1
+#define CONTROL_96_SIZE 1
+#define CONTROL_97_SIZE 1
+#define CONTROL_98_SIZE 1
+#define CONTROL_99_SIZE 1
+#define CONTROL_100_SIZE 1
+#define CONTROL_101_SIZE 1
+#define CONTROL_102_SIZE 1
+#define CONTROL_103_SIZE 1
+#define CONTROL_104_SIZE 1
+#define CONTROL_105_SIZE 1
+#define CONTROL_106_SIZE 1
+#define CONTROL_107_SIZE 1
+#define CONTROL_108_SIZE 1
+#define CONTROL_109_SIZE 1
+#define CONTROL_110_SIZE 1
+#define CONTROL_111_SIZE 1
+#define CONTROL_112_SIZE 1
+#define CONTROL_113_SIZE 1
+#define CONTROL_114_SIZE 1
+#define CONTROL_115_SIZE 1
+#define CONTROL_116_SIZE 1
+#define CONTROL_117_SIZE 1
+#define CONTROL_118_SIZE 1
+#define CONTROL_119_SIZE 1
+#define CONTROL_120_SIZE 1
+#define CONTROL_121_SIZE 1
+#define CONTROL_122_SIZE 1
+#define CONTROL_123_SIZE 1
+#define CONTROL_124_SIZE 1
+#define CONTROL_125_SIZE 1
+#define CONTROL_126_SIZE 1
+#define CONTROL_127_SIZE 1
+#define CONTROL_128_SIZE 1
+#define CONTROL_129_SIZE 1
+#define CONTROL_130_SIZE 1
+#define CONTROL_131_SIZE 1
+#define CONTROL_132_SIZE 1
+#define CONTROL_133_SIZE 1
+#define CONTROL_134_SIZE 1
+#define CONTROL_135_SIZE 1
+#define CONTROL_136_SIZE 1
+#define CONTROL_137_SIZE 1
+#define CONTROL_138_SIZE 1
+#define CONTROL_139_SIZE 1
+#define CONTROL_140_SIZE 1
+#define CONTROL_141_SIZE 1
+#define CONTROL_142_SIZE 1
+#define CONTROL_143_SIZE 1
+#define CONTROL_144_SIZE 1
+#define CONTROL_145_SIZE 1
+#define CONTROL_146_SIZE 1
+#define CONTROL_147_SIZE 1
+#define CONTROL_148_SIZE 1
+#define CONTROL_149_SIZE 1
 
 #define HIGH_RESISTANCE_DATA_SIZE 6
 #define FULL_RAW_CAP_MIN_MAX_DATA_SIZE 4
@@ -350,6 +411,182 @@ struct f54_query_21 {
 	};
 };
 
+struct f54_query_22 {
+	union {
+		struct {
+			unsigned char has_packed_image:1;
+			unsigned char has_ctrl101:1;
+			unsigned char has_dynamic_sense_display_ratio:1;
+			unsigned char has_query23:1;
+			unsigned char has_ctrl103_query26:1;
+			unsigned char has_ctrl104:1;
+			unsigned char has_ctrl105:1;
+			unsigned char has_query28:1;
+		} __packed;
+		unsigned char data[1];
+	};
+};
+
+struct f54_query_23 {
+	union {
+		struct {
+			unsigned char has_ctrl102:1;
+			unsigned char has_ctrl102_sub1:1;
+			unsigned char has_ctrl102_sub2:1;
+			unsigned char has_ctrl102_sub4:1;
+			unsigned char has_ctrl102_sub5:1;
+			unsigned char has_ctrl102_sub9:1;
+			unsigned char has_ctrl102_sub10:1;
+			unsigned char has_ctrl102_sub11:1;
+		} __packed;
+		unsigned char data[1];
+	};
+};
+
+struct f54_query_25 {
+	union {
+		struct {
+			unsigned char has_ctrl106:1;
+			unsigned char has_ctrl102_sub12:1;
+			unsigned char has_ctrl107:1;
+			unsigned char has_ctrl108:1;
+			unsigned char has_ctrl109:1;
+			unsigned char has_data20:1;
+			unsigned char f54_query25_b6:1;
+			unsigned char has_query27:1;
+		} __packed;
+		unsigned char data[1];
+	};
+};
+
+struct f54_query_27 {
+	union {
+		struct {
+			unsigned char has_ctrl110:1;
+			unsigned char has_data21:1;
+			unsigned char has_ctrl111:1;
+			unsigned char has_ctrl112:1;
+			unsigned char has_ctrl113:1;
+			unsigned char has_data22:1;
+			unsigned char has_ctrl114:1;
+			unsigned char has_query29:1;
+		} __packed;
+		unsigned char data[1];
+	};
+};
+
+struct f54_query_29 {
+	union {
+		struct {
+			unsigned char has_ctrl115:1;
+			unsigned char has_ground_ring_options:1;
+			unsigned char has_lost_bursts_tuning:1;
+			unsigned char has_aux_exvcom2_select:1;
+			unsigned char has_ctrl116:1;
+			unsigned char has_data23:1;
+			unsigned char has_ctrl117:1;
+			unsigned char has_query30:1;
+		} __packed;
+		unsigned char data[1];
+	};
+};
+
+struct f54_query_30 {
+	union {
+		struct {
+			unsigned char has_ctrl118:1;
+			unsigned char has_ctrl119:1;
+			unsigned char has_ctrl120:1;
+			unsigned char has_ctrl121:1;
+			unsigned char has_ctrl122_query31:1;
+			unsigned char has_ctrl123:1;
+			unsigned char f54_query30_b6:1;
+			unsigned char has_query32:1;
+		} __packed;
+		unsigned char data[1];
+	};
+};
+
+struct f54_query_32 {
+	union {
+		struct {
+			unsigned char has_ctrl125:1;
+			unsigned char has_ctrl126:1;
+			unsigned char has_ctrl127:1;
+			unsigned char has_abs_charge_pump_disable:1;
+			unsigned char has_query33:1;
+			unsigned char has_data24:1;
+			unsigned char has_query34:1;
+			unsigned char has_query35:1;
+		} __packed;
+		unsigned char data[1];
+	};
+};
+
+struct f54_query_33 {
+	union {
+		struct {
+			unsigned char f54_query33_b0:1;
+			unsigned char f54_query33_b1:1;
+			unsigned char f54_query33_b2:1;
+			unsigned char f54_query33_b3:1;
+			unsigned char has_ctrl132:1;
+			unsigned char has_ctrl133:1;
+			unsigned char has_ctrl134:1;
+			unsigned char has_query36:1;
+		} __packed;
+		unsigned char data[1];
+	};
+};
+
+struct f54_query_35 {
+	union {
+		struct {
+			unsigned char has_data25:1;
+			unsigned char f54_query35_b1:1;
+			unsigned char f54_query35_b2:1;
+			unsigned char has_ctrl137:1;
+			unsigned char has_ctrl138:1;
+			unsigned char has_ctrl139:1;
+			unsigned char has_data26:1;
+			unsigned char has_ctrl140:1;
+		} __packed;
+		unsigned char data[1];
+	};
+};
+
+struct f54_query_36 {
+	union {
+		struct {
+			unsigned char f54_query36_b0:1;
+			unsigned char has_ctrl142:1;
+			unsigned char has_query37:1;
+			unsigned char has_ctrl143:1;
+			unsigned char has_ctrl144:1;
+			unsigned char has_ctrl145:1;
+			unsigned char has_ctrl146:1;
+			unsigned char has_query38:1;
+		} __packed;
+		unsigned char data[1];
+	};
+};
+
+struct f54_query_38 {
+	union {
+		struct {
+			unsigned char has_ctrl147:1;
+			unsigned char has_ctrl148:1;
+			unsigned char has_ctrl149:1;
+			unsigned char f54_query38_b3:1;
+			unsigned char f54_query38_b4:1;
+			unsigned char f54_query38_b5:1;
+			unsigned char f54_query38_b6:1;
+			unsigned char f54_query38_b7:1;
+		} __packed;
+		unsigned char data[1];
+	};
+};
+
 struct f54_control_7 {
 	union {
 		struct {
@@ -412,11 +649,50 @@ struct f54_control_88 {
 	};
 };
 
+struct f54_control_110 {
+	union {
+		struct {
+			unsigned char active_stylus_rx_feedback_cap;
+			unsigned char active_stylus_rx_feedback_cap_reference;
+			unsigned char active_stylus_low_reference;
+			unsigned char active_stylus_high_reference;
+			unsigned char active_stylus_gain_control;
+			unsigned char active_stylus_gain_control_reference;
+			unsigned char active_stylus_timing_mode;
+			unsigned char active_stylus_discovery_bursts;
+			unsigned char active_stylus_detection_bursts;
+			unsigned char active_stylus_discovery_noise_multiplier;
+			unsigned char active_stylus_detection_envelope_min;
+			unsigned char active_stylus_detection_envelope_max;
+			unsigned char active_stylus_lose_count;
+		} __packed;
+		struct {
+			unsigned char data[13];
+			unsigned short address;
+		} __packed;
+	};
+};
+
+struct f54_control_149 {
+	union {
+		struct {
+			unsigned char trans_cbc_global_cap_enable:1;
+			unsigned char f54_ctrl49_b1__7:7;
+		} __packed;
+		struct {
+			unsigned char data[1];
+			unsigned short address;
+		} __packed;
+	};
+};
+
 struct f54_control {
 	struct f54_control_7 *reg_7;
 	struct f54_control_41 *reg_41;
 	struct f54_control_57 *reg_57;
 	struct f54_control_88 *reg_88;
+	struct f54_control_110 *reg_110;
+	struct f54_control_149 *reg_149;
 };
 
 struct synaptics_rmi4_f54_handle {
@@ -441,6 +717,17 @@ struct synaptics_rmi4_f54_handle {
 	struct f54_query_15 query_15;
 	struct f54_query_16 query_16;
 	struct f54_query_21 query_21;
+	struct f54_query_22 query_22;
+	struct f54_query_23 query_23;
+	struct f54_query_25 query_25;
+	struct f54_query_27 query_27;
+	struct f54_query_29 query_29;
+	struct f54_query_30 query_30;
+	struct f54_query_32 query_32;
+	struct f54_query_33 query_33;
+	struct f54_query_35 query_35;
+	struct f54_query_36 query_36;
+	struct f54_query_38 query_38;
 	struct f54_control control;
 	struct mutex status_mutex;
 	struct kobject *sysfs_dir;
@@ -772,6 +1059,7 @@ static int test_do_preparation(void)
 {
 	int retval;
 	unsigned char value;
+	unsigned char zero = 0x00;
 	struct synaptics_rmi4_data *rmi4_data = f54->rmi4_data;
 
 	if (f54->query.touch_controller_family == 1)
@@ -781,6 +1069,28 @@ static int test_do_preparation(void)
 
 	if (f54->query.has_0d_acquisition_control)
 		disable_cbc(reg_57);
+
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query33) &&
+			(f54->query_33.has_query36) &&
+			(f54->query_36.has_query38) &&
+			(f54->query_38.has_ctrl149)) {
+		retval = synaptics_rmi4_reg_write(rmi4_data,
+				f54->control.reg_149->address,
+				&zero,
+				sizeof(f54->control.reg_149->data));
+		if (retval < 0) {
+			dev_err(rmi4_data->pdev->dev.parent,
+					"%s: Failed to disable global CBC\n",
+					__func__);
+			return retval;
+		}
+	}
 
 	if (f54->query.has_signal_clarity) {
 		value = 1;
@@ -1721,6 +2031,8 @@ static void test_free_control_mem(void)
 	kfree(control.reg_41);
 	kfree(control.reg_57);
 	kfree(control.reg_88);
+	kfree(control.reg_110);
+	kfree(control.reg_149);
 
 	return;
 }
@@ -1964,6 +2276,470 @@ static int test_set_controls(void)
 		reg_addr += CONTROL_88_SIZE;
 	}
 
+	/* control 89 */
+	if ((f54->query.has_query13 == 1) &&
+			(f54->query_13.has_cidim == 1 ||
+			f54->query_13.has_noise_mitigation_enhancement ||
+			f54->query_13.has_rail_im))
+		reg_addr += CONTROL_89_SIZE;
+
+	/* control 90 */
+	if ((f54->query.has_query15) && (f54->query_15.has_ctrl90))
+		reg_addr += CONTROL_90_SIZE;
+
+	/* control 91 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query21) &&
+			(f54->query_21.has_ctrl91))
+		reg_addr += CONTROL_91_SIZE;
+
+	/* control 92 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query16) &&
+			(f54->query_16.has_ctrl92))
+		reg_addr += CONTROL_92_SIZE;
+
+	/* control 93 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query16) &&
+			(f54->query_16.has_ctrl93))
+		reg_addr += CONTROL_93_SIZE;
+
+	/* control 94 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query16) &&
+			(f54->query_16.has_ctrl94_query18))
+		reg_addr += CONTROL_94_SIZE;
+
+	/* control 95 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query16) &&
+			(f54->query_16.has_ctrl95_query19))
+		reg_addr += CONTROL_95_SIZE;
+
+	/* control 96 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query21) &&
+			(f54->query_21.has_ctrl96))
+		reg_addr += CONTROL_96_SIZE;
+
+	/* control 97 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query21) &&
+			(f54->query_21.has_ctrl97))
+		reg_addr += CONTROL_97_SIZE;
+
+	/* control 98 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query21) &&
+			(f54->query_21.has_ctrl98))
+		reg_addr += CONTROL_98_SIZE;
+
+	/* control 99 */
+	if (f54->query.touch_controller_family == 2)
+		reg_addr += CONTROL_99_SIZE;
+
+	/* control 100 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query16) &&
+			(f54->query_16.has_ctrl100))
+		reg_addr += CONTROL_100_SIZE;
+
+	/* control 101 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query22) &&
+			(f54->query_22.has_ctrl101))
+		reg_addr += CONTROL_101_SIZE;
+
+
+	/* control 102 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query22) &&
+			(f54->query_22.has_query23) &&
+			(f54->query_23.has_ctrl102))
+		reg_addr += CONTROL_102_SIZE;
+
+	/* control 103 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query22) &&
+			(f54->query_22.has_ctrl103_query26))
+		reg_addr += CONTROL_103_SIZE;
+
+	/* control 104 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query22) &&
+			(f54->query_22.has_ctrl104))
+		reg_addr += CONTROL_104_SIZE;
+
+	/* control 105 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query22) &&
+			(f54->query_22.has_ctrl105))
+		reg_addr += CONTROL_105_SIZE;
+
+	/* control 106 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_ctrl106))
+		reg_addr += CONTROL_106_SIZE;
+
+	/* control 107 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_ctrl107))
+		reg_addr += CONTROL_107_SIZE;
+
+	/* control 108 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_ctrl108))
+		reg_addr += CONTROL_108_SIZE;
+
+	/* control 109 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_ctrl109))
+		reg_addr += CONTROL_109_SIZE;
+
+	/* control 110 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_ctrl110)) {
+		control->reg_110 = kzalloc(sizeof(*(control->reg_110)),
+				GFP_KERNEL);
+		if (!control->reg_110)
+			goto exit_no_mem;
+		control->reg_110->address = reg_addr;
+		reg_addr += CONTROL_110_SIZE;
+	}
+
+	/* control 111 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_ctrl111))
+		reg_addr += CONTROL_111_SIZE;
+
+	/* control 112 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_ctrl112))
+		reg_addr += CONTROL_112_SIZE;
+
+	/* control 113 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_ctrl113))
+		reg_addr += CONTROL_113_SIZE;
+
+	/* control 114 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_ctrl114))
+		reg_addr += CONTROL_114_SIZE;
+
+	/* control 115 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_ctrl115))
+		reg_addr += CONTROL_115_SIZE;
+
+	/* control 116 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_ctrl116))
+		reg_addr += CONTROL_116_SIZE;
+
+	/* control 117 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_ctrl117))
+		reg_addr += CONTROL_117_SIZE;
+
+	/* control 118 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_ctrl118))
+		reg_addr += CONTROL_118_SIZE;
+
+	/* control 119 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_ctrl119))
+		reg_addr += CONTROL_119_SIZE;
+
+	/* control 120 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_ctrl120))
+		reg_addr += CONTROL_120_SIZE;
+
+	/* control 121 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_ctrl121))
+		reg_addr += CONTROL_121_SIZE;
+
+	/* control 122 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_ctrl122_query31))
+		reg_addr += CONTROL_122_SIZE;
+
+	/* control 123 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_ctrl123))
+		reg_addr += CONTROL_123_SIZE;
+
+	/* control 124 reserved */
+
+	/* control 125 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_ctrl125))
+		reg_addr += CONTROL_125_SIZE;
+
+	/* control 126 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_ctrl126))
+		reg_addr += CONTROL_126_SIZE;
+
+	/* control 127 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_ctrl127))
+		reg_addr += CONTROL_127_SIZE;
+
+	/* controls 128 129 130 131 reserved */
+
+	/* control 132 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query33) &&
+			(f54->query_33.has_ctrl132))
+		reg_addr += CONTROL_132_SIZE;
+
+	/* control 133 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query33) &&
+			(f54->query_33.has_ctrl133))
+		reg_addr += CONTROL_133_SIZE;
+
+	/* control 134 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query33) &&
+			(f54->query_33.has_ctrl134))
+		reg_addr += CONTROL_134_SIZE;
+
+	/* controls 135 136 reserved */
+
+	/* control 137 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query35) &&
+			(f54->query_35.has_ctrl137))
+		reg_addr += CONTROL_137_SIZE;
+
+	/* control 138 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query35) &&
+			(f54->query_35.has_ctrl138))
+		reg_addr += CONTROL_138_SIZE;
+
+	/* control 139 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query35) &&
+			(f54->query_35.has_ctrl139))
+		reg_addr += CONTROL_139_SIZE;
+
+	/* control 140 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query35) &&
+			(f54->query_35.has_ctrl140))
+		reg_addr += CONTROL_140_SIZE;
+
+	/* control 141 reserved */
+
+	/* control 142 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query33) &&
+			(f54->query_33.has_query36) &&
+			(f54->query_36.has_ctrl142))
+		reg_addr += CONTROL_142_SIZE;
+
+	/* control 143 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query33) &&
+			(f54->query_33.has_query36) &&
+			(f54->query_36.has_ctrl143))
+		reg_addr += CONTROL_143_SIZE;
+
+	/* control 144 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query33) &&
+			(f54->query_33.has_query36) &&
+			(f54->query_36.has_ctrl144))
+		reg_addr += CONTROL_144_SIZE;
+
+	/* control 145 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query33) &&
+			(f54->query_33.has_query36) &&
+			(f54->query_36.has_ctrl145))
+		reg_addr += CONTROL_145_SIZE;
+
+	/* control 146 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query33) &&
+			(f54->query_33.has_query36) &&
+			(f54->query_36.has_ctrl146))
+		reg_addr += CONTROL_146_SIZE;
+
+	/* control 147 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query33) &&
+			(f54->query_33.has_query36) &&
+			(f54->query_36.has_query38) &&
+			(f54->query_38.has_ctrl147))
+		reg_addr += CONTROL_147_SIZE;
+
+	/* control 148 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query33) &&
+			(f54->query_33.has_query36) &&
+			(f54->query_36.has_query38) &&
+			(f54->query_38.has_ctrl148))
+		reg_addr += CONTROL_148_SIZE;
+
+	/* control 149 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query33) &&
+			(f54->query_33.has_query36) &&
+			(f54->query_36.has_query38) &&
+			(f54->query_38.has_ctrl149)) {
+		control->reg_149 = kzalloc(sizeof(*(control->reg_149)),
+				GFP_KERNEL);
+		if (!control->reg_149)
+			goto exit_no_mem;
+		control->reg_149->address = reg_addr;
+		reg_addr += CONTROL_149_SIZE;
+	}
+
 	return 0;
 
 exit_no_mem:
@@ -2019,24 +2795,32 @@ static int test_set_queries(void)
 	}
 
 	/* query 16 */
-	retval = synaptics_rmi4_reg_read(rmi4_data,
-			f54->query_base_addr + offset,
-			f54->query_16.data,
-			sizeof(f54->query_16.data));
-	if (retval < 0)
-		return retval;
-	offset += 1;
+	if ((f54->query.has_query15) && (f54->query_15.has_query16)) {
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				f54->query_base_addr + offset,
+				f54->query_16.data,
+				sizeof(f54->query_16.data));
+		if (retval < 0)
+			return retval;
+		offset += 1;
+	}
 
 	/* query 17 */
-	if (f54->query_16.has_query17)
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query16) &&
+			(f54->query_16.has_query17))
 		offset += 1;
 
 	/* query 18 */
-	if (f54->query_16.has_ctrl94_query18)
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query16) &&
+			(f54->query_16.has_ctrl94_query18))
 		offset += 1;
 
 	/* query 19 */
-	if (f54->query_16.has_ctrl95_query19)
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query16) &&
+			(f54->query_16.has_ctrl95_query19))
 		offset += 1;
 
 	/* query 20 */
@@ -2044,12 +2828,228 @@ static int test_set_queries(void)
 		offset += 1;
 
 	/* query 21 */
-	retval = synaptics_rmi4_reg_read(rmi4_data,
-			f54->query_base_addr + offset,
-			f54->query_21.data,
-			sizeof(f54->query_21.data));
-	if (retval < 0)
-		return retval;
+	if ((f54->query.has_query15) && (f54->query_15.has_query21)) {
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				f54->query_base_addr + offset,
+				f54->query_21.data,
+				sizeof(f54->query_21.data));
+		if (retval < 0)
+			return retval;
+		offset += 1;
+	}
+
+	/* query 22 */
+	if ((f54->query.has_query15) && (f54->query_15.has_query22)) {
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				f54->query_base_addr + offset,
+				f54->query_22.data,
+				sizeof(f54->query_22.data));
+		if (retval < 0)
+			return retval;
+		offset += 1;
+	}
+
+	/* query 23 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query22) &&
+			(f54->query_22.has_query23)) {
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				f54->query_base_addr + offset,
+				f54->query_23.data,
+				sizeof(f54->query_23.data));
+		if (retval < 0)
+			return retval;
+		offset += 1;
+	}
+
+	/* query 24 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query21) &&
+			(f54->query_21.has_query24_data18))
+		offset += 1;
+
+	/* query 25 */
+	if ((f54->query.has_query15) && (f54->query_15.has_query25)) {
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				f54->query_base_addr + offset,
+				f54->query_25.data,
+				sizeof(f54->query_25.data));
+		if (retval < 0)
+			return retval;
+		offset += 1;
+	}
+
+	/* query 26 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query22) &&
+			(f54->query_22.has_ctrl103_query26))
+		offset += 1;
+
+	/* query 27 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27)) {
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				f54->query_base_addr + offset,
+				f54->query_27.data,
+				sizeof(f54->query_27.data));
+		if (retval < 0)
+			return retval;
+		offset += 1;
+	}
+
+	/* query 28 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query22) &&
+			(f54->query_22.has_query28))
+		offset += 1;
+
+	/* query 29 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29)) {
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				f54->query_base_addr + offset,
+				f54->query_29.data,
+				sizeof(f54->query_29.data));
+		if (retval < 0)
+			return retval;
+		offset += 1;
+	}
+
+	/* query 30 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30)) {
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				f54->query_base_addr + offset,
+				f54->query_30.data,
+				sizeof(f54->query_30.data));
+		if (retval < 0)
+			return retval;
+		offset += 1;
+	}
+
+	/* query 31 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_ctrl122_query31))
+		offset += 1;
+
+	/* query 32 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32)) {
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				f54->query_base_addr + offset,
+				f54->query_32.data,
+				sizeof(f54->query_32.data));
+		if (retval < 0)
+			return retval;
+		offset += 1;
+	}
+
+	/* query 33 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query33)) {
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				f54->query_base_addr + offset,
+				f54->query_33.data,
+				sizeof(f54->query_33.data));
+		if (retval < 0)
+			return retval;
+		offset += 1;
+	}
+
+	/* query 34 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query34))
+		offset += 1;
+
+	/* query 35 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query35)) {
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				f54->query_base_addr + offset,
+				f54->query_35.data,
+				sizeof(f54->query_35.data));
+		if (retval < 0)
+			return retval;
+		offset += 1;
+	}
+
+	/* query 36 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query33) &&
+			(f54->query_33.has_query36)) {
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				f54->query_base_addr + offset,
+				f54->query_36.data,
+				sizeof(f54->query_36.data));
+		if (retval < 0)
+			return retval;
+		offset += 1;
+	}
+
+	/* query 37 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query33) &&
+			(f54->query_33.has_query36) &&
+			(f54->query_36.has_query37))
+		offset += 1;
+
+	/* query 37 */
+	if ((f54->query.has_query15) &&
+			(f54->query_15.has_query25) &&
+			(f54->query_25.has_query27) &&
+			(f54->query_27.has_query29) &&
+			(f54->query_29.has_query30) &&
+			(f54->query_30.has_query32) &&
+			(f54->query_32.has_query33) &&
+			(f54->query_33.has_query36) &&
+			(f54->query_36.has_query38)) {
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				f54->query_base_addr + offset,
+				f54->query_38.data,
+				sizeof(f54->query_38.data));
+		if (retval < 0)
+			return retval;
+		offset += 1;
+	}
 
 	return 0;
 }
