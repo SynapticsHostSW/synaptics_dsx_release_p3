@@ -1404,7 +1404,7 @@ static ssize_t test_sysfs_get_report_store(struct device *dev,
 	}
 
 	f54->status = STATUS_BUSY;
-
+	f54->report_size = 0;
 	f54->data_pos = 0;
 
 	hrtimer_start(&f54->watchdog,
@@ -1900,12 +1900,14 @@ static void test_report_work(struct work_struct *work)
 
 	mutex_lock(&f54->status_mutex);
 
-	if (f54->status != STATUS_BUSY)
+	if (f54->status != STATUS_BUSY) {
+		retval = STATUS_ERROR;
 		goto exit;
+	}
 
 	retval = test_wait_for_command_completion();
 	if (retval < 0) {
-		f54->status = STATUS_ERROR;
+		retval = STATUS_ERROR;
 		goto exit;
 	}
 
@@ -1914,7 +1916,7 @@ static void test_report_work(struct work_struct *work)
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Report data size = 0\n",
 				__func__);
-		f54->status = STATUS_ERROR;
+		retval = STATUS_ERROR;
 		goto exit;
 	}
 
@@ -1927,7 +1929,7 @@ static void test_report_work(struct work_struct *work)
 					"%s: Failed to alloc mem for data buffer\n",
 					__func__);
 			f54->data_buffer_size = 0;
-			f54->status = STATUS_ERROR;
+			retval = STATUS_ERROR;
 			goto exit;
 		}
 		f54->data_buffer_size = f54->report_size;
@@ -1944,7 +1946,7 @@ static void test_report_work(struct work_struct *work)
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to write report data index\n",
 				__func__);
-		f54->status = STATUS_ERROR;
+		retval = STATUS_ERROR;
 		goto exit;
 	}
 
@@ -1956,17 +1958,19 @@ static void test_report_work(struct work_struct *work)
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to read report data\n",
 				__func__);
-		f54->status = STATUS_ERROR;
+		retval = STATUS_ERROR;
 		goto exit;
 	}
 
-	f54->status = STATUS_IDLE;
+	retval = STATUS_IDLE;
 
 exit:
 	mutex_unlock(&f54->status_mutex);
 
-	if (f54->status == STATUS_ERROR)
+	if (retval == STATUS_ERROR)
 		f54->report_size = 0;
+
+	f54->status = retval;
 
 	return;
 }
