@@ -314,7 +314,13 @@ static int synaptics_rmi4_i2c_write(struct synaptics_rmi4_data *rmi4_data,
 	};
 
 	buf[0] = addr & MASK_8BIT;
-	memcpy(&buf[1], &data[0], length);
+	retval = secure_memcpy(&buf[1], length, &data[0], length, length);
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to copy data\n",
+				__func__);
+		return retval;
+	}
 
 	mutex_lock(&rmi4_data->rmi4_io_ctrl_mutex);
 

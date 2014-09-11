@@ -941,6 +941,7 @@ static int synaptics_rmi4_f12_abs_report(struct synaptics_rmi4_data *rmi4_data,
 {
 	int retval;
 	unsigned char touch_count = 0; /* number of touch points */
+	unsigned char index;
 	unsigned char finger;
 	unsigned char fingers_to_process;
 	unsigned char finger_status;
@@ -993,16 +994,16 @@ static int synaptics_rmi4_f12_abs_report(struct synaptics_rmi4_data *rmi4_data,
 			return 0;
 
 		/* Start checking from the highest bit */
-		temp = extra_data->data15_size - 1; /* Highest byte */
+		index = extra_data->data15_size - 1; /* Highest byte */
 		finger = (fingers_to_process - 1) % 8; /* Highest bit */
 		do {
-			if (extra_data->data15_data[temp] & (1 << finger))
+			if (extra_data->data15_data[index] & (1 << finger))
 				break;
 
 			if (finger) {
 				finger--;
-			} else {
-				temp--; /* Move to the next lower byte */
+			} else if (index > 0) {
+				index--; /* Move to the next lower byte */
 				finger = 7;
 			}
 
@@ -1527,6 +1528,12 @@ static int synaptics_rmi4_f11_init(struct synaptics_rmi4_data *rmi4_data,
 	fhandler->fn_number = fd->fn_number;
 	fhandler->num_of_data_sources = fd->intr_src_count;
 	fhandler->extra = kmalloc(sizeof(*extra_data), GFP_KERNEL);
+	if (!fhandler->extra) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to alloc mem for fhandler->extra\n",
+				__func__);
+		return -ENOMEM;
+	}
 	extra_data = (struct synaptics_rmi4_f11_extra_data *)fhandler->extra;
 
 	retval = synaptics_rmi4_reg_read(rmi4_data,
@@ -1775,6 +1782,12 @@ static int synaptics_rmi4_f12_init(struct synaptics_rmi4_data *rmi4_data,
 	fhandler->fn_number = fd->fn_number;
 	fhandler->num_of_data_sources = fd->intr_src_count;
 	fhandler->extra = kmalloc(sizeof(*extra_data), GFP_KERNEL);
+	if (!fhandler->extra) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to alloc mem for fhandler->extra\n",
+				__func__);
+		return -ENOMEM;
+	}
 	extra_data = (struct synaptics_rmi4_f12_extra_data *)fhandler->extra;
 	size_of_2d_data = sizeof(struct synaptics_rmi4_f12_finger_data);
 
@@ -1950,6 +1963,12 @@ static int synaptics_rmi4_f12_init(struct synaptics_rmi4_data *rmi4_data,
 	/* Allocate memory for finger data storage space */
 	fhandler->data_size = num_of_fingers * size_of_2d_data;
 	fhandler->data = kmalloc(fhandler->data_size, GFP_KERNEL);
+	if (!fhandler->data) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to alloc mem for fhandler->data\n",
+				__func__);
+		return -ENOMEM;
+	}
 
 	return retval;
 }
@@ -2448,7 +2467,16 @@ flash_prog_mode:
 	rmi->product_props = f01_query[1];
 	rmi->product_info[0] = f01_query[2];
 	rmi->product_info[1] = f01_query[3];
-	memcpy(rmi->product_id_string, &f01_query[11], PRODUCT_ID_SIZE);
+	retval = secure_memcpy(rmi->product_id_string,
+			sizeof(rmi->product_id_string),
+			&f01_query[11],
+			sizeof(f01_query) - 11,
+			PRODUCT_ID_SIZE);
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to copy product ID string\n",
+				__func__);
+	}
 
 	if (rmi->manufacturer_id != 1) {
 		dev_err(rmi4_data->pdev->dev.parent,

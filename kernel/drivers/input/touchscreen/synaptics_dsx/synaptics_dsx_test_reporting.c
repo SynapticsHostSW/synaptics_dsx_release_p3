@@ -1882,7 +1882,14 @@ static ssize_t test_sysfs_data_read(struct file *data_file,
 	else
 		read_size = min(count, f54->report_size);
 
-	memcpy(buf, f54->report_data + f54->data_pos, read_size);
+	retval = secure_memcpy(buf, count, f54->report_data + f54->data_pos,
+			f54->data_buffer_size - f54->data_pos, read_size);
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to copy report data\n",
+				__func__);
+		goto exit;
+	}
 	f54->data_pos += read_size;
 	retval = read_size;
 

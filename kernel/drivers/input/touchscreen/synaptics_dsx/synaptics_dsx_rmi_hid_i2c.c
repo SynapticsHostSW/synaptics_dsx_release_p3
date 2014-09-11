@@ -399,7 +399,17 @@ static int hid_i2c_init(struct synaptics_rmi4_data *rmi4_data)
 	retval = generic_read(i2c, sizeof(hid_dd));
 	if (retval < 0)
 		goto exit;
-	memcpy((unsigned char *)&hid_dd, buffer.read, sizeof(hid_dd));
+	retval = secure_memcpy((unsigned char *)&hid_dd,
+			sizeof(struct hid_device_descriptor),
+			buffer.read,
+			buffer.read_size,
+			sizeof(hid_dd));
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to copy device descriptor data\n",
+				__func__);
+		goto exit;
+	}
 
 	retval = parse_report_descriptor(rmi4_data);
 	if (retval < 0)
@@ -518,7 +528,16 @@ recover:
 
 		report_length = (buffer.read[1] << 8) | buffer.read[0];
 		if (report_length == hid_dd.input_report_max_length) {
-			memcpy(&data[0], &buffer.read[4], length);
+			retval = secure_memcpy(&data[0], length,
+					&buffer.read[4], buffer.read_size - 4,
+					length);
+			if (retval < 0) {
+				dev_err(rmi4_data->pdev->dev.parent,
+						"%s: Failed to copy data\n",
+						__func__);
+			} else {
+				retval = length;
+			}
 			goto exit;
 		}
 
@@ -581,11 +600,17 @@ recover:
 	buffer.write[7] = addr >> 8;
 	buffer.write[8] = length & MASK_8BIT;
 	buffer.write[9] = length >> 8;
-	memcpy(&buffer.write[10], &data[0], length);
-
-	retval = do_i2c_transfer(i2c, msg);
-	if (retval == 0)
-		retval = length;
+	retval = secure_memcpy(&buffer.write[10], buffer.write_size - 10,
+			&data[0], length, length);
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to copy data\n",
+				__func__);
+	} else {
+		retval = do_i2c_transfer(i2c, msg);
+		if (retval == 0)
+			retval = length;
+	}
 
 	mutex_unlock(&rmi4_data->rmi4_io_ctrl_mutex);
 

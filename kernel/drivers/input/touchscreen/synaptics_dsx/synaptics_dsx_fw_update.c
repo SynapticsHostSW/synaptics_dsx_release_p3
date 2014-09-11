@@ -546,6 +546,7 @@ struct synaptics_rmi4_fwu_handle {
 	unsigned short flash_config_length;
 	unsigned short payload_length;
 	unsigned short partition_table_bytes;
+	unsigned short read_config_buf_size;
 	const unsigned char *config_data;
 	const unsigned char *image;
 	unsigned char *image_name;
@@ -878,8 +879,10 @@ static void fwu_parse_image_header_10(void)
 
 static void fwu_parse_image_header_05_06(void)
 {
+	int retval;
 	const unsigned char *image;
 	struct image_header_05_06 *header;
+	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
 
 	image = fwu->image;
 	header = (struct image_header_05_06 *)image;
@@ -921,12 +924,29 @@ static void fwu_parse_image_header_05_06(void)
 		fwu->img.dp_config.data = image + fwu->img.disp_config_offset;
 	} else {
 		fwu->img.contains_disp_config = false;
-		memcpy(fwu->img.cstmr_product_id, header->cstmr_product_id,
+		retval = secure_memcpy(fwu->img.cstmr_product_id,
+				sizeof(fwu->img.cstmr_product_id),
+				header->cstmr_product_id,
+				sizeof(header->cstmr_product_id),
 				PRODUCT_ID_SIZE);
+		if (retval < 0) {
+			dev_err(rmi4_data->pdev->dev.parent,
+					"%s: Failed to copy custom product ID string\n",
+					__func__);
+		}
 		fwu->img.cstmr_product_id[PRODUCT_ID_SIZE] = 0;
 	}
 
-	memcpy(fwu->img.product_id, header->product_id, PRODUCT_ID_SIZE);
+	retval = secure_memcpy(fwu->img.product_id,
+			sizeof(fwu->img.product_id),
+			header->product_id,
+			sizeof(header->product_id),
+			PRODUCT_ID_SIZE);
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to copy product ID string\n",
+				__func__);
+	}
 	fwu->img.product_id[PRODUCT_ID_SIZE] = 0;
 
 	fwu->img.lockdown.size = LOCKDOWN_SIZE;
@@ -1520,6 +1540,14 @@ static int fwu_read_f34_v7_queries(void)
 
 	kfree(fwu->read_config_buf);
 	fwu->read_config_buf = kzalloc(fwu->partition_table_bytes, GFP_KERNEL);
+	if (!fwu->read_config_buf) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to alloc mem for fwu->read_config_buf\n",
+				__func__);
+		fwu->read_config_buf_size = 0;
+		return -ENOMEM;
+	}
+	fwu->read_config_buf_size = fwu->partition_table_bytes;
 	ptable = fwu->read_config_buf;
 
 	retval = fwu_read_f34_v7_partition_table();
@@ -2035,6 +2063,12 @@ static int fwu_get_image_firmware_id(unsigned int *fw_id)
 
 		strptr += 2;
 		firmware_id = kzalloc(MAX_FIRMWARE_ID_LEN, GFP_KERNEL);
+		if (!firmware_id) {
+			dev_err(rmi4_data->pdev->dev.parent,
+					"%s: Failed to alloc mem for firmware_id\n",
+					__func__);
+			return -ENOMEM;
+		}
 		while (strptr[index] >= '0' && strptr[index] <= '9') {
 			firmware_id[index] = strptr[index];
 			index++;
@@ -2216,7 +2250,7 @@ static int fwu_scan_pdt(void)
 					break;
 				default:
 					dev_err(rmi4_data->pdev->dev.parent,
-							"%s: Unrecognized F$34 version\n",
+							"%s: Unrecognized F34 version\n",
 							__func__);
 					return -EINVAL;
 				}
@@ -2614,12 +2648,21 @@ static int fwu_write_partition_table(void)
 {
 	int retval;
 	unsigned short block_count;
+	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
 
 	block_count = fwu->blkcount.bl_config;
 	fwu->config_area = BL_CONFIG_AREA;
 	fwu->config_size = fwu->block_size * block_count;
 	kfree(fwu->read_config_buf);
 	fwu->read_config_buf = kzalloc(fwu->config_size, GFP_KERNEL);
+	if (!fwu->read_config_buf) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to alloc mem for fwu->read_config_buf\n",
+				__func__);
+		fwu->read_config_buf_size = 0;
+		return -ENOMEM;
+	}
+	fwu->read_config_buf_size = fwu->config_size;
 
 	retval = fwu_read_f34_blocks(block_count, CMD_READ_CONFIG);
 	if (retval < 0)
@@ -2785,6 +2828,15 @@ static int fwu_do_read_config(void)
 	fwu->config_size = fwu->block_size * block_count;
 	kfree(fwu->read_config_buf);
 	fwu->read_config_buf = kzalloc(fwu->config_size, GFP_KERNEL);
+	if (!fwu->read_config_buf) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to alloc mem for fwu->read_config_buf\n",
+				__func__);
+		fwu->read_config_buf_size = 0;
+		retval = -ENOMEM;
+		goto exit;
+	}
+	fwu->read_config_buf_size = fwu->config_size;
 
 	retval = fwu_read_f34_blocks(block_count, CMD_READ_CONFIG);
 
@@ -2988,7 +3040,15 @@ static int fwu_start_reflash(void)
 	pr_notice("%s: Start of reflash process\n", __func__);
 
 	if (fwu->image == NULL) {
-		strncpy(fwu->image_name, FW_IMAGE_NAME, MAX_IMAGE_NAME_LEN);
+		retval = secure_memcpy(fwu->image_name, MAX_IMAGE_NAME_LEN,
+				FW_IMAGE_NAME, sizeof(FW_IMAGE_NAME),
+				sizeof(FW_IMAGE_NAME));
+		if (retval < 0) {
+			dev_err(rmi4_data->pdev->dev.parent,
+					"%s: Failed to copy image file name\n",
+					__func__);
+			goto exit;
+		}
 		dev_dbg(rmi4_data->pdev->dev.parent,
 				"%s: Requesting firmware image %s\n",
 				__func__, fwu->image_name);
@@ -3136,6 +3196,7 @@ static ssize_t fwu_sysfs_show_image(struct file *data_file,
 		struct kobject *kobj, struct bin_attribute *attributes,
 		char *buf, loff_t pos, size_t count)
 {
+	int retval;
 	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
 
 	if (count < fwu->config_size) {
@@ -3145,7 +3206,14 @@ static ssize_t fwu_sysfs_show_image(struct file *data_file,
 		return -EINVAL;
 	}
 
-	memcpy(buf, fwu->read_config_buf, fwu->config_size);
+	retval = secure_memcpy(buf, count, fwu->read_config_buf,
+			fwu->read_config_buf_size, fwu->config_size);
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to copy config data\n",
+				__func__);
+		return retval;
+	}
 
 	return fwu->config_size;
 }
@@ -3154,9 +3222,17 @@ static ssize_t fwu_sysfs_store_image(struct file *data_file,
 		struct kobject *kobj, struct bin_attribute *attributes,
 		char *buf, loff_t pos, size_t count)
 {
-	memcpy((void *)(&fwu->ext_data_source[fwu->data_pos]),
-			(const void *)buf,
-			count);
+	int retval;
+	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
+
+	retval = secure_memcpy(&fwu->ext_data_source[fwu->data_pos],
+			fwu->image_size - fwu->data_pos, buf, count, count);
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to copy image data\n",
+				__func__);
+		return retval;
+	}
 
 	fwu->data_pos += count;
 
@@ -3293,7 +3369,17 @@ static ssize_t fwu_sysfs_config_area_store(struct device *dev,
 static ssize_t fwu_sysfs_image_name_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	memcpy(fwu->image_name, buf, count);
+	int retval;
+	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
+
+	retval = secure_memcpy(fwu->image_name, MAX_IMAGE_NAME_LEN,
+			buf, count, count);
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to copy image file name\n",
+				__func__);
+		return retval;
+	}
 
 	return count;
 }
