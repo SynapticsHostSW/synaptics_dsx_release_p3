@@ -217,7 +217,6 @@ struct synaptics_rmi4_device_info {
  * @early_suspend: early suspend power management
  * @current_page: current RMI page for register access
  * @button_0d_enabled: switch for enabling 0d button support
- * @full_pm_cycle: switch for enabling full power management cycle
  * @num_of_tx: number of Tx channels for 2D touch
  * @num_of_rx: number of Rx channels for 2D touch
  * @num_of_fingers: maximum number of fingers for 2D touch
@@ -264,7 +263,6 @@ struct synaptics_rmi4_data {
 #endif
 	unsigned char current_page;
 	unsigned char button_0d_enabled;
-	unsigned char full_pm_cycle;
 	unsigned char num_of_tx;
 	unsigned char num_of_rx;
 	unsigned char num_of_fingers;

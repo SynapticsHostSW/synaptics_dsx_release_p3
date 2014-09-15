@@ -57,7 +57,6 @@ struct synaptics_dsx_button_map {
  * @reset_active_ms: reset active time
  * @byte_delay_us: delay time between two bytes of SPI data
  * @block_delay_us: delay time between two SPI transfers
- * @pwr_reg_name: pointer to name of regulator for power control
  * @bus_reg_name: pointer to name of regulator for bus pullup control
  * @cap_button_map: pointer to 0D button map
  * @vir_button_map: pointer to virtual button map
@@ -82,7 +81,6 @@ struct synaptics_dsx_board_data {
 	unsigned int reset_active_ms;
 	unsigned int byte_delay_us;
 	unsigned int block_delay_us;
-	const char *pwr_reg_name;
 	const char *bus_reg_name;
 	struct synaptics_dsx_button_map *cap_button_map;
 	struct synaptics_dsx_button_map *vir_button_map;

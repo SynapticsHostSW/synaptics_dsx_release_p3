@@ -97,12 +97,6 @@ static int synaptics_rmi4_reinit_device(struct synaptics_rmi4_data *rmi4_data);
 static int synaptics_rmi4_reset_device(struct synaptics_rmi4_data *rmi4_data);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-static ssize_t synaptics_rmi4_full_pm_cycle_show(struct device *dev,
-		struct device_attribute *attr, char *buf);
-
-static ssize_t synaptics_rmi4_full_pm_cycle_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count);
-
 static void synaptics_rmi4_early_suspend(struct early_suspend *h);
 
 static void synaptics_rmi4_late_resume(struct early_suspend *h);
@@ -517,11 +511,6 @@ static struct synaptics_rmi4_exp_fn_data exp_data;
 struct synaptics_dsx_button_map *vir_button_map;
 
 static struct device_attribute attrs[] = {
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	__ATTR(full_pm_cycle, (S_IRUGO | S_IWUGO),
-			synaptics_rmi4_full_pm_cycle_show,
-			synaptics_rmi4_full_pm_cycle_store),
-#endif
 	__ATTR(reset, S_IWUGO,
 			synaptics_rmi4_show_error,
 			synaptics_rmi4_f01_reset_store),
@@ -552,31 +541,6 @@ static struct kobj_attribute virtual_key_map_attr = {
 	},
 	.show = synaptics_rmi4_virtual_key_map_show,
 };
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static ssize_t synaptics_rmi4_full_pm_cycle_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct synaptics_rmi4_data *rmi4_data = dev_get_drvdata(dev);
-
-	return snprintf(buf, PAGE_SIZE, "%u\n",
-			rmi4_data->full_pm_cycle);
-}
-
-static ssize_t synaptics_rmi4_full_pm_cycle_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	unsigned int input;
-	struct synaptics_rmi4_data *rmi4_data = dev_get_drvdata(dev);
-
-	if (sscanf(buf, "%u", &input) != 1)
-		return -EINVAL;
-
-	rmi4_data->full_pm_cycle = input > 0 ? 1 : 0;
-
-	return count;
-}
-#endif
 
 static ssize_t synaptics_rmi4_f01_reset_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -2761,18 +2725,6 @@ static int synaptics_rmi4_get_reg(struct synaptics_rmi4_data *rmi4_data,
 		goto regulator_put;
 	}
 
-	if ((bdata->pwr_reg_name != NULL) && (*bdata->pwr_reg_name != 0)) {
-		rmi4_data->pwr_reg = regulator_get(rmi4_data->pdev->dev.parent,
-				bdata->pwr_reg_name);
-		if (IS_ERR(rmi4_data->pwr_reg)) {
-			dev_err(rmi4_data->pdev->dev.parent,
-					"%s: Failed to get power regulator\n",
-					__func__);
-			retval = PTR_ERR(rmi4_data->pwr_reg);
-			goto regulator_put;
-		}
-	}
-
 	if ((bdata->bus_reg_name != NULL) && (*bdata->bus_reg_name != 0)) {
 		rmi4_data->bus_reg = regulator_get(rmi4_data->pdev->dev.parent,
 				bdata->bus_reg_name);
@@ -2788,11 +2740,6 @@ static int synaptics_rmi4_get_reg(struct synaptics_rmi4_data *rmi4_data,
 	return 0;
 
 regulator_put:
-	if (rmi4_data->pwr_reg) {
-		regulator_put(rmi4_data->pwr_reg);
-		rmi4_data->pwr_reg = NULL;
-	}
-
 	if (rmi4_data->bus_reg) {
 		regulator_put(rmi4_data->bus_reg);
 		rmi4_data->bus_reg = NULL;
@@ -2805,12 +2752,10 @@ static int synaptics_rmi4_enable_reg(struct synaptics_rmi4_data *rmi4_data,
 		bool enable)
 {
 	int retval;
-	const struct synaptics_dsx_board_data *bdata =
-			rmi4_data->hw_if->board_data;
 
 	if (!enable) {
 		retval = 0;
-		goto disable_pwr_reg;
+		goto disable_bus_reg;
 	}
 
 	if (rmi4_data->bus_reg) {
@@ -2823,22 +2768,7 @@ static int synaptics_rmi4_enable_reg(struct synaptics_rmi4_data *rmi4_data,
 		}
 	}
 
-	if (rmi4_data->pwr_reg) {
-		retval = regulator_enable(rmi4_data->pwr_reg);
-		if (retval < 0) {
-			dev_err(rmi4_data->pdev->dev.parent,
-					"%s: Failed to enable power regulator\n",
-					__func__);
-			goto disable_bus_reg;
-		}
-		msleep(bdata->power_delay_ms);
-	}
-
 	return 0;
-
-disable_pwr_reg:
-	if (rmi4_data->pwr_reg)
-		regulator_disable(rmi4_data->pwr_reg);
 
 disable_bus_reg:
 	if (rmi4_data->bus_reg)
@@ -3535,9 +3465,6 @@ static void synaptics_rmi4_early_suspend(struct early_suspend *h)
 	}
 	mutex_unlock(&exp_data.mutex);
 
-	if (rmi4_data->full_pm_cycle)
-		synaptics_rmi4_suspend(&(rmi4_data->input_dev->dev));
-
 exit:
 	rmi4_data->suspend = true;
 
@@ -3559,8 +3486,7 @@ static void synaptics_rmi4_late_resume(struct early_suspend *h)
 		goto exit;
 	}
 
-	if (rmi4_data->full_pm_cycle)
-		synaptics_rmi4_resume(&(rmi4_data->input_dev->dev));
+	rmi4_data->current_page = MASK_8BIT;
 
 	if (rmi4_data->suspend) {
 		synaptics_rmi4_sensor_wake(rmi4_data);
@@ -3609,9 +3535,6 @@ static int synaptics_rmi4_suspend(struct device *dev)
 	}
 	mutex_unlock(&exp_data.mutex);
 
-	if (rmi4_data->pwr_reg)
-		regulator_disable(rmi4_data->pwr_reg);
-
 exit:
 	rmi4_data->suspend = true;
 
@@ -3622,8 +3545,6 @@ static int synaptics_rmi4_resume(struct device *dev)
 {
 	struct synaptics_rmi4_exp_fhandler *exp_fhandler;
 	struct synaptics_rmi4_data *rmi4_data = dev_get_drvdata(dev);
-	const struct synaptics_dsx_board_data *bdata =
-			rmi4_data->hw_if->board_data;
 
 	if (rmi4_data->stay_awake)
 		return 0;
@@ -3633,13 +3554,7 @@ static int synaptics_rmi4_resume(struct device *dev)
 		goto exit;
 	}
 
-	if (rmi4_data->pwr_reg) {
-		regulator_enable(rmi4_data->pwr_reg);
-		msleep(bdata->power_delay_ms);
-		rmi4_data->current_page = MASK_8BIT;
-		if (rmi4_data->hw_if->ui_hw_init)
-			rmi4_data->hw_if->ui_hw_init(rmi4_data);
-	}
+	rmi4_data->current_page = MASK_8BIT;
 
 	synaptics_rmi4_sensor_wake(rmi4_data);
 	synaptics_rmi4_irq_enable(rmi4_data, true, false);
