@@ -28,7 +28,7 @@
 			synaptics,bus-reg-name = "vcc_i2c";
 			synaptics,irq-gpio = <&msmgpio 61 0x00>;
 			synaptics,irq-on-state = <0>;
-			synaptics,irq-flags = <0x2002>; /* IRQF_ONESHOT | IRQF_TRIGGER_FALLING */
+			synaptics,irq-flags = <0x2008>; /* IRQF_ONESHOT | IRQF_TRIGGER_LOW */
 			synaptics,power-delay-ms = <160>;
 			synaptics,reset-delay-ms = <100>;
 			synaptics,max-y-for-2d = <800>; /* remove if no virtual buttons */
