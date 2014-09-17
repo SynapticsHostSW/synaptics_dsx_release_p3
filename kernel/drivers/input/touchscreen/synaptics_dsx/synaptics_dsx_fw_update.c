@@ -216,6 +216,7 @@ enum flash_command {
 	CMD_WRITE_GUEST_CODE,
 	CMD_READ_CONFIG,
 	CMD_ERASE_ALL,
+	CMD_ERASE_UI_FIRMWARE,
 	CMD_ERASE_UI_CONFIG,
 	CMD_ERASE_BL_CONFIG,
 	CMD_ERASE_DISP_CONFIG,
@@ -1092,6 +1093,10 @@ static int fwu_write_f34_v7_command_single_transaction(unsigned char cmd)
 		data_1_5.partition_id = CORE_CODE_PARTITION;
 		data_1_5.command = CMD_V7_ERASE_AP;
 		break;
+	case CMD_ERASE_UI_FIRMWARE:
+		data_1_5.partition_id = CORE_CODE_PARTITION;
+		data_1_5.command = CMD_V7_ERASE;
+		break;
 	case CMD_ERASE_BL_CONFIG:
 		data_1_5.partition_id = GLOBAL_PARAMETERS_PARTITION;
 		data_1_5.command = CMD_V7_ERASE;
@@ -1156,6 +1161,7 @@ static int fwu_write_f34_v7_command(unsigned char cmd)
 	case CMD_ERASE_ALL:
 		command = CMD_V7_ERASE_AP;
 		break;
+	case CMD_ERASE_UI_FIRMWARE:
 	case CMD_ERASE_BL_CONFIG:
 	case CMD_ERASE_UI_CONFIG:
 	case CMD_ERASE_DISP_CONFIG:
@@ -1177,6 +1183,7 @@ static int fwu_write_f34_v7_command(unsigned char cmd)
 
 	switch (cmd) {
 	case CMD_ERASE_ALL:
+	case CMD_ERASE_UI_FIRMWARE:
 	case CMD_ERASE_BL_CONFIG:
 	case CMD_ERASE_UI_CONFIG:
 	case CMD_ERASE_DISP_CONFIG:
@@ -2465,30 +2472,6 @@ static int fwu_write_firmware(void)
 			firmware_block_count, CMD_WRITE_FW);
 }
 
-static int fwu_erase_all(void)
-{
-	int retval;
-	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
-
-	retval = fwu_write_f34_command(CMD_ERASE_ALL);
-	if (retval < 0)
-		return retval;
-
-	dev_dbg(rmi4_data->pdev->dev.parent,
-			"%s: Erase all command written\n",
-			__func__);
-
-	retval = fwu_wait_for_idle(ERASE_WAIT_MS, false);
-	if (retval < 0)
-		return retval;
-
-	dev_dbg(rmi4_data->pdev->dev.parent,
-			"%s: Idle status detected\n",
-			__func__);
-
-	return 0;
-}
-
 static int fwu_erase_configuration(void)
 {
 	int retval;
@@ -2547,6 +2530,66 @@ static int fwu_erase_guest_code(void)
 	dev_dbg(rmi4_data->pdev->dev.parent,
 			"%s: Idle status detected\n",
 			__func__);
+
+	return 0;
+}
+
+static int fwu_erase_all(void)
+{
+	int retval;
+	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
+
+	if (fwu->bl_version == BL_V7) {
+		retval = fwu_write_f34_command(CMD_ERASE_UI_FIRMWARE);
+		if (retval < 0)
+			return retval;
+
+		dev_dbg(rmi4_data->pdev->dev.parent,
+				"%s: Erase command written\n",
+				__func__);
+
+		retval = fwu_wait_for_idle(ERASE_WAIT_MS, false);
+		if (retval < 0)
+			return retval;
+
+		dev_dbg(rmi4_data->pdev->dev.parent,
+				"%s: Idle status detected\n",
+				__func__);
+
+		fwu->config_area = UI_CONFIG_AREA;
+		retval = fwu_erase_configuration();
+		if (retval < 0)
+			return retval;
+	} else {
+		retval = fwu_write_f34_command(CMD_ERASE_ALL);
+		if (retval < 0)
+			return retval;
+
+		dev_dbg(rmi4_data->pdev->dev.parent,
+				"%s: Erase all command written\n",
+				__func__);
+
+		retval = fwu_wait_for_idle(ERASE_WAIT_MS, false);
+		if (retval < 0)
+			return retval;
+
+		dev_dbg(rmi4_data->pdev->dev.parent,
+				"%s: Idle status detected\n",
+				__func__);
+	}
+
+	if (fwu->flash_properties.has_disp_config) {
+		fwu->config_area = DP_CONFIG_AREA;
+		retval = fwu_erase_configuration();
+		if (retval < 0)
+			return retval;
+	}
+
+	if (fwu->new_partition_table && fwu->has_guest_code) {
+		retval = fwu_erase_guest_code();
+		if (retval < 0)
+			return retval;
+	}
 
 	return 0;
 }
@@ -2743,28 +2786,19 @@ static int fwu_do_reflash(void)
 
 	if (fwu->flash_properties.has_disp_config &&
 			fwu->img.contains_disp_config) {
-		fwu->config_area = DP_CONFIG_AREA;
-		if (fwu->bl_version == BL_V5 || fwu->bl_version == BL_V6) {
-			retval = fwu_erase_configuration();
-			if (retval < 0)
-				return retval;
-		}
 		retval = fwu_write_dp_configuration();
 		if (retval < 0)
 			return retval;
 		pr_notice("%s: Display configuration programmed\n", __func__);
 	}
 
-	if (fwu->has_guest_code && fwu->img.contains_guest_code) {
-		if (fwu->bl_version == BL_V5 || fwu->bl_version == BL_V6) {
-			retval = fwu_erase_guest_code();
+	if (fwu->new_partition_table) {
+		if (fwu->has_guest_code && fwu->img.contains_guest_code) {
+			retval = fwu_write_guest_code();
 			if (retval < 0)
 				return retval;
+			pr_notice("%s: Guest code programmed\n", __func__);
 		}
-		retval = fwu_write_guest_code();
-		if (retval < 0)
-			return retval;
-		pr_notice("%s: Guest code programmed\n", __func__);
 	}
 
 	return retval;
