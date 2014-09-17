@@ -2,6 +2,25 @@
 //  Synaptics DSX Driver
 ///////////////////////////////////////////////////////////
 
+v2.4 Sep 17, 2014 scott.lin@tw.synaptics.com
+   - Add support to retrieve custom product ID information from image header
+   - Add F$12 control register support for wedge sensor
+   - Add support for retrieving F$12 palm data
+   - Add printing of flash status when F$34 operation fails
+   - Add support for reporting passive pen events
+   - Clear interrupt status register without processing residual events when enabling interrupt
+   - Add option to support I2C burst read limit in RMI over I2C
+   - Treat in-range state (no valid X/Y data) of active pen as pen lift event
+   - Properly clean up resources in reset callback of optional test reporting module
+   - Increase watchdog timeout for reading test reports in option test reporting module to 3s
+   - Add support for v7 bootloader in firmware update module
+   - Give unique input driver names to active pen and proximity modules
+   - Turn off transcap global CBC in optional test reporting module when reading test reports
+   - Adjust handling of status and report size data elements in optional test reporting module
+   - Add security check for kmalloc and memcpy operations
+   - Remove redundant power management operations
+   - Use low level trigger for attention interrupt
+
 v2.3 May 22, 2014 scott.lin@tw.synaptics.com
    - Add support for retrieving battery state and pen ID information in active pen module
    - Add support for virtual buttons
