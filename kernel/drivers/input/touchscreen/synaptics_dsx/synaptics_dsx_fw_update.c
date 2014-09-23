@@ -462,7 +462,9 @@ struct image_header_05_06 {
 	unsigned char reserved_05;
 	unsigned char options_firmware_id:1;
 	unsigned char options_bootloader:1;
-	unsigned char options_reserved:6;
+	unsigned char options_guest_code:1;
+	unsigned char options_tddi:1;
+	unsigned char options_reserved:4;
 	unsigned char header_version;
 	unsigned char firmware_size[4];
 	unsigned char config_size[4];
@@ -892,39 +894,39 @@ static void fwu_parse_image_header_05_06(void)
 
 	fwu->img.bl_version = header->header_version;
 
-	fwu->img.ui_firmware.size = le_to_uint(header->firmware_size);
-
-	fwu->img.ui_config.size = le_to_uint(header->config_size);
-
-	fwu->img.contains_firmware_id = header->options_firmware_id;
-	if (fwu->img.contains_firmware_id)
-		fwu->img.firmware_id = le_to_uint(header->firmware_id);
-
 	fwu->img.contains_bootloader = header->options_bootloader;
 	if (fwu->img.contains_bootloader)
 		fwu->img.bootloader_size = le_to_uint(header->bootloader_size);
 
-	if (fwu->img.ui_firmware.size)
+	fwu->img.ui_firmware.size = le_to_uint(header->firmware_size);
+	if (fwu->img.ui_firmware.size) {
 		fwu->img.ui_firmware.data = image + IMAGE_AREA_OFFSET;
-
-	if (fwu->img.ui_config.size)
-		fwu->img.ui_config.data = image + IMAGE_AREA_OFFSET +
-				fwu->img.ui_firmware.size;
-
-	if (fwu->img.contains_bootloader) {
-		if (fwu->img.ui_firmware.size)
+		if (fwu->img.contains_bootloader)
 			fwu->img.ui_firmware.data += fwu->img.bootloader_size;
-		if (fwu->img.ui_config.size)
-			fwu->img.ui_config.data += fwu->img.bootloader_size;
 	}
 
-	if ((fwu->img.bl_version == BL_V5) && fwu->img.contains_bootloader) {
+	if ((fwu->img.bl_version == BL_V6) && header->options_tddi) {
+		fwu->img.ui_firmware.size = le_to_uint(header->ui_size);
+		fwu->img.ui_firmware.data = image + le_to_uint(header->ui_addr);
+	}
+
+	fwu->img.ui_config.size = le_to_uint(header->config_size);
+	if (fwu->img.ui_config.size) {
+		fwu->img.ui_config.data = fwu->img.ui_firmware.data +
+				fwu->img.ui_firmware.size;
+	}
+
+	if ((fwu->img.bl_version == BL_V5 && fwu->img.contains_bootloader) ||
+			(fwu->img.bl_version == BL_V6 && header->options_tddi))
 		fwu->img.contains_disp_config = true;
+	else
+		fwu->img.contains_disp_config = false;
+
+	if (fwu->img.contains_disp_config) {
 		fwu->img.disp_config_offset = le_to_uint(header->dsp_cfg_addr);
 		fwu->img.dp_config.size = le_to_uint(header->dsp_cfg_size);
 		fwu->img.dp_config.data = image + fwu->img.disp_config_offset;
 	} else {
-		fwu->img.contains_disp_config = false;
 		retval = secure_memcpy(fwu->img.cstmr_product_id,
 				sizeof(fwu->img.cstmr_product_id),
 				header->cstmr_product_id,
@@ -937,6 +939,10 @@ static void fwu_parse_image_header_05_06(void)
 		}
 		fwu->img.cstmr_product_id[PRODUCT_ID_SIZE] = 0;
 	}
+
+	fwu->img.contains_firmware_id = header->options_firmware_id;
+	if (fwu->img.contains_firmware_id)
+		fwu->img.firmware_id = le_to_uint(header->firmware_id);
 
 	retval = secure_memcpy(fwu->img.product_id,
 			sizeof(fwu->img.product_id),
