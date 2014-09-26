@@ -217,6 +217,7 @@ static struct synaptics_dsx_board_data dsx_board_data = {
 	.reset_delay_ms = DSX_RESET_DELAY_MS,
 	.reset_active_ms = DSX_RESET_ACTIVE_MS,
 	.max_y_for_2d = DSX_MAX_Y_FOR_2D,
+	.pwr_reg_name = pwr_reg_name,
 	.bus_reg_name = bus_reg_name,
 	.cap_button_map = &cap_button_map,
 	.vir_button_map = &vir_button_map,

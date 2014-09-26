@@ -2725,6 +2725,18 @@ static int synaptics_rmi4_get_reg(struct synaptics_rmi4_data *rmi4_data,
 		goto regulator_put;
 	}
 
+	if ((bdata->pwr_reg_name != NULL) && (*bdata->pwr_reg_name != 0)) {
+		rmi4_data->pwr_reg = regulator_get(rmi4_data->pdev->dev.parent,
+				bdata->pwr_reg_name);
+		if (IS_ERR(rmi4_data->pwr_reg)) {
+			dev_err(rmi4_data->pdev->dev.parent,
+					"%s: Failed to get power regulator\n",
+					__func__);
+			retval = PTR_ERR(rmi4_data->pwr_reg);
+			goto regulator_put;
+		}
+	}
+
 	if ((bdata->bus_reg_name != NULL) && (*bdata->bus_reg_name != 0)) {
 		rmi4_data->bus_reg = regulator_get(rmi4_data->pdev->dev.parent,
 				bdata->bus_reg_name);
@@ -2740,6 +2752,11 @@ static int synaptics_rmi4_get_reg(struct synaptics_rmi4_data *rmi4_data,
 	return 0;
 
 regulator_put:
+	if (rmi4_data->pwr_reg) {
+		regulator_put(rmi4_data->pwr_reg);
+		rmi4_data->pwr_reg = NULL;
+	}
+
 	if (rmi4_data->bus_reg) {
 		regulator_put(rmi4_data->bus_reg);
 		rmi4_data->bus_reg = NULL;
@@ -2752,10 +2769,12 @@ static int synaptics_rmi4_enable_reg(struct synaptics_rmi4_data *rmi4_data,
 		bool enable)
 {
 	int retval;
+	const struct synaptics_dsx_board_data *bdata =
+			rmi4_data->hw_if->board_data;
 
 	if (!enable) {
 		retval = 0;
-		goto disable_bus_reg;
+		goto disable_pwr_reg;
 	}
 
 	if (rmi4_data->bus_reg) {
@@ -2768,7 +2787,22 @@ static int synaptics_rmi4_enable_reg(struct synaptics_rmi4_data *rmi4_data,
 		}
 	}
 
+	if (rmi4_data->pwr_reg) {
+		retval = regulator_enable(rmi4_data->pwr_reg);
+		if (retval < 0) {
+			dev_err(rmi4_data->pdev->dev.parent,
+					"%s: Failed to enable power regulator\n",
+					__func__);
+			goto disable_bus_reg;
+		}
+		msleep(bdata->power_delay_ms);
+	}
+
 	return 0;
+
+disable_pwr_reg:
+	if (rmi4_data->pwr_reg)
+		regulator_disable(rmi4_data->pwr_reg);
 
 disable_bus_reg:
 	if (rmi4_data->bus_reg)

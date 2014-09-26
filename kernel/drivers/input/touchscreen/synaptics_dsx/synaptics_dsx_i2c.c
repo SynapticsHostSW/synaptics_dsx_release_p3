@@ -59,6 +59,14 @@ static int parse_dt(struct device *dev, struct synaptics_dsx_board_data *bdata)
 	else
 		bdata->irq_flags = value;
 
+	retval = of_property_read_string(np, "synaptics,pwr-reg-name", &name);
+	if (retval == -EINVAL)
+		bdata->pwr_reg_name = NULL;
+	else if (retval < 0)
+		return retval;
+	else
+		bdata->pwr_reg_name = name;
+
 	retval = of_property_read_string(np, "synaptics,bus-reg-name", &name);
 	if (retval == -EINVAL)
 		bdata->bus_reg_name = NULL;
