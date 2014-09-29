@@ -905,10 +905,8 @@ static void fwu_parse_image_header_05_06(void)
 			fwu->img.ui_firmware.data += fwu->img.bootloader_size;
 	}
 
-	if ((fwu->img.bl_version == BL_V6) && header->options_tddi) {
-		fwu->img.ui_firmware.size = le_to_uint(header->ui_size);
-		fwu->img.ui_firmware.data = image + le_to_uint(header->ui_addr);
-	}
+	if ((fwu->img.bl_version == BL_V6) && header->options_tddi)
+		fwu->img.ui_firmware.data = image + IMAGE_AREA_OFFSET;
 
 	fwu->img.ui_config.size = le_to_uint(header->config_size);
 	if (fwu->img.ui_config.size) {
