@@ -73,6 +73,8 @@ struct rmidev_handle {
 	dev_t dev_no;
 	pid_t pid;
 	unsigned char intr_mask;
+	unsigned char *tmpbuf;
+	unsigned int tmpbuf_size;
 	struct device dev;
 	struct synaptics_rmi4_data *rmi4_data;
 	struct kobject *sysfs_dir;
@@ -385,6 +387,25 @@ static ssize_t rmidev_sysfs_intr_mask_store(struct device *dev,
 	return count;
 }
 
+static int rmidev_allocate_buffer(int count)
+{
+	if (count + 1 > rmidev->tmpbuf_size) {
+		if (rmidev->tmpbuf_size)
+			kfree(rmidev->tmpbuf);
+		rmidev->tmpbuf = kzalloc(count + 1, GFP_KERNEL);
+		if (!rmidev->tmpbuf) {
+			dev_err(rmidev->rmi4_data->pdev->dev.parent,
+					"%s: Failed to alloc mem for buffer\n",
+					__func__);
+			rmidev->tmpbuf_size = 0;
+			return -ENOMEM;
+		}
+		rmidev->tmpbuf_size = count + 1;
+	}
+
+	return 0;
+}
+
 /*
  * rmidev_llseek - set register address to access for RMI device
  *
@@ -454,7 +475,6 @@ static ssize_t rmidev_read(struct file *filp, char __user *buf,
 		size_t count, loff_t *f_pos)
 {
 	ssize_t retval;
-	unsigned char tmpbuf[count + 1];
 	struct rmidev_data *dev_data = filp->private_data;
 
 	if (IS_ERR(dev_data)) {
@@ -468,16 +488,18 @@ static ssize_t rmidev_read(struct file *filp, char __user *buf,
 	if (count > (REG_ADDR_LIMIT - *f_pos))
 		count = REG_ADDR_LIMIT - *f_pos;
 
+	rmidev_allocate_buffer(count);
+
 	mutex_lock(&(dev_data->file_mutex));
 
 	retval = synaptics_rmi4_reg_read(rmidev->rmi4_data,
 			*f_pos,
-			tmpbuf,
+			rmidev->tmpbuf,
 			count);
 	if (retval < 0)
 		goto clean_up;
 
-	if (copy_to_user(buf, tmpbuf, count))
+	if (copy_to_user(buf, rmidev->tmpbuf, count))
 		retval = -EFAULT;
 	else
 		*f_pos += retval;
@@ -500,7 +522,6 @@ static ssize_t rmidev_write(struct file *filp, const char __user *buf,
 		size_t count, loff_t *f_pos)
 {
 	ssize_t retval;
-	unsigned char tmpbuf[count + 1];
 	struct rmidev_data *dev_data = filp->private_data;
 
 	if (IS_ERR(dev_data)) {
@@ -514,14 +535,16 @@ static ssize_t rmidev_write(struct file *filp, const char __user *buf,
 	if (count > (REG_ADDR_LIMIT - *f_pos))
 		count = REG_ADDR_LIMIT - *f_pos;
 
-	if (copy_from_user(tmpbuf, buf, count))
+	rmidev_allocate_buffer(count);
+
+	if (copy_from_user(rmidev->tmpbuf, buf, count))
 		return -EFAULT;
 
 	mutex_lock(&(dev_data->file_mutex));
 
 	retval = synaptics_rmi4_reg_write(rmidev->rmi4_data,
 			*f_pos,
-			tmpbuf,
+			rmidev->tmpbuf,
 			count);
 	if (retval >= 0)
 		*f_pos += retval;
@@ -862,6 +885,9 @@ static void rmidev_remove_device(struct synaptics_rmi4_data *rmi4_data)
 	unregister_chrdev_region(rmidev->dev_no, 1);
 
 	class_destroy(rmidev_device_class);
+
+	if (rmidev->tmpbuf)
+		kfree(rmidev->tmpbuf);
 
 	kfree(rmidev);
 	rmidev = NULL;
