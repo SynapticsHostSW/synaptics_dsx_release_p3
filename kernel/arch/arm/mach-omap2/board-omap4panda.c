@@ -115,6 +115,7 @@
 #define DSX_IRQ_ON_STATE 0
 #define DSX_IRQ_FLAGS (IRQF_TRIGGER_LOW | IRQF_ONESHOT)
 #define DSX_MAX_Y_FOR_2D 800 /* set to -1 if no virtual buttons */
+static unsigned char pwr_reg_name[] = "";
 static unsigned char bus_reg_name[] = "";
 static unsigned int cap_button_codes[] =
 		{};
@@ -137,6 +138,7 @@ static unsigned int vir_button_codes[] = {
 #define DSX_IRQ_ON_STATE 0
 #define DSX_IRQ_FLAGS (IRQF_TRIGGER_LOW | IRQF_ONESHOT)
 #define DSX_MAX_Y_FOR_2D -1
+static unsigned char pwr_reg_name[] = "";
 static unsigned char bus_reg_name[] = "";
 static unsigned int cap_button_codes[] =
 		{KEY_MENU, KEY_HOME, KEY_BACK, KEY_SEARCH};
@@ -164,6 +166,7 @@ static unsigned int vir_button_codes[] =
 #define DSX_IRQ_ON_STATE 0
 #define DSX_IRQ_FLAGS (IRQF_TRIGGER_LOW | IRQF_ONESHOT)
 #define DSX_MAX_Y_FOR_2D -1
+static unsigned char pwr_reg_name[] = "";
 static unsigned char bus_reg_name[] = "";
 static unsigned int cap_button_codes[] =
 		{};
@@ -188,6 +191,7 @@ static unsigned int vir_button_codes[] =
 #define DSX_IRQ_ON_STATE 0
 #define DSX_IRQ_FLAGS (IRQF_TRIGGER_LOW | IRQF_ONESHOT)
 #define DSX_MAX_Y_FOR_2D -1
+static unsigned char pwr_reg_name[] = "";
 static unsigned char bus_reg_name[] = "";
 static unsigned int cap_button_codes[] =
 		{};
