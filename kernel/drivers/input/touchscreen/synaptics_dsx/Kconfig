@@ -92,6 +92,17 @@ config TOUCHSCREEN_SYNAPTICS_DSX_TEST_REPORTING
 	  To compile this driver as a module, choose M here: the
 	  module will be called synaptics_dsx_test_reporting.
 
+config TOUCHSCREEN_SYNAPTICS_DSX_VIDEO
+	tristate "Synaptics DSX video module"
+	depends on TOUCHSCREEN_SYNAPTICS_DSX_CORE
+	help
+	  Say Y here to enable support for video communication functionalities.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called synaptics_dsx_video.
+
 config TOUCHSCREEN_SYNAPTICS_DSX_DEBUG
 	tristate "Synaptics DSX debug module"
 	depends on TOUCHSCREEN_SYNAPTICS_DSX_CORE
