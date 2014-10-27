@@ -49,6 +49,8 @@ struct synaptics_dsx_button_map {
  * @reset_on_state: reset active state
  * @max_y_for_2d: maximum y value for 2D area when virtual buttons are present
  * @irq_flags: IRQ flags
+ * @i2c_addr: I2C slave address
+ * @ub_i2c_addr: microbootloader mode I2C slave address
  * @device_descriptor_addr: HID device descriptor address
  * @panel_x: x-axis resolution of display panel
  * @panel_y: y-axis resolution of display panel
@@ -74,6 +76,8 @@ struct synaptics_dsx_board_data {
 	int reset_on_state;
 	int max_y_for_2d;
 	unsigned long irq_flags;
+	unsigned short i2c_addr;
+	unsigned short ub_i2c_addr;
 	unsigned short device_descriptor_addr;
 	unsigned int panel_x;
 	unsigned int panel_y;

@@ -2240,11 +2240,13 @@ static int synaptics_rmi4_alloc_fh(struct synaptics_rmi4_fn **fhandler,
 static int synaptics_rmi4_query_device(struct synaptics_rmi4_data *rmi4_data)
 {
 	int retval;
+	unsigned char ii;
 	unsigned char page_number;
 	unsigned char intr_count;
 	unsigned char f01_query[F01_STD_QUERY_LEN];
 	unsigned short pdt_entry_addr;
 	bool f01found;
+	bool f35found;
 	bool was_in_bl_mode;
 	struct synaptics_rmi4_fn_desc rmi_fd;
 	struct synaptics_rmi4_fn *fhandler;
@@ -2264,12 +2266,24 @@ rescan_pdt:
 				pdt_entry_addr -= PDT_ENTRY_SIZE) {
 			pdt_entry_addr |= (page_number << 8);
 
-			retval = synaptics_rmi4_reg_read(rmi4_data,
-					pdt_entry_addr,
-					(unsigned char *)&rmi_fd,
-					sizeof(rmi_fd));
-			if (retval < 0)
-				return retval;
+			if (pdt_entry_addr == PDT_START) {
+				for (ii = 0; ii < 6; ii++) {
+					retval = synaptics_rmi4_reg_read(
+							rmi4_data,
+							pdt_entry_addr + ii,
+							&rmi_fd.data[ii],
+							1);
+					if (retval < 0)
+						return retval;
+				}
+			} else {
+				retval = synaptics_rmi4_reg_read(rmi4_data,
+						pdt_entry_addr,
+						(unsigned char *)&rmi_fd,
+						sizeof(rmi_fd));
+				if (retval < 0)
+					return retval;
+			}
 
 			pdt_entry_addr &= ~(MASK_8BIT << 8);
 
@@ -2391,6 +2405,9 @@ rescan_pdt:
 #endif
 				}
 				break;
+			case SYNAPTICS_RMI4_F35:
+				f35found = true;
+				break;
 			}
 
 			/* Accumulate the interrupt count */
@@ -2407,7 +2424,16 @@ rescan_pdt:
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to find F01\n",
 				__func__);
-		return -EINVAL;
+		if (!f35found) {
+			dev_err(rmi4_data->pdev->dev.parent,
+					"%s: Failed to find F35\n",
+					__func__);
+			return -EINVAL;
+		} else {
+			pr_notice("%s: In microbootloader mode\n",
+					__func__);
+			return 0;
+		}
 	}
 
 flash_prog_mode:

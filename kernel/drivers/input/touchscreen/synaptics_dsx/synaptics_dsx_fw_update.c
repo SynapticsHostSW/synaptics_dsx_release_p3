@@ -71,6 +71,16 @@
 
 #define V7_PARTITION_SUPPORT_BYTES 4
 
+#define F35_ERROR_CODE_OFFSET 0
+#define F35_CHUNK_NUM_LSB_OFFSET 0
+#define F35_CHUNK_NUM_MSB_OFFSET 1
+#define F35_CHUNK_DATA_OFFSET 2
+#define F35_CHUNK_COMMAND_OFFSET 18
+
+#define F35_CHUNK_SIZE 16
+#define F35_ERASE_ALL_WAIT_MS 2000
+#define F35_RESET_WAIT_MS 250
+
 #define SLEEP_MODE_NORMAL (0x00)
 #define SLEEP_MODE_SENSOR_SLEEP (0x01)
 #define SLEEP_MODE_RESERVED0 (0x02)
@@ -88,6 +98,8 @@
 
 static int fwu_do_reflash(void);
 
+static int fwu_recovery_check_status(void);
+
 static ssize_t fwu_sysfs_show_image(struct file *data_file,
 		struct kobject *kobj, struct bin_attribute *attributes,
 		char *buf, loff_t pos, size_t count);
@@ -95,6 +107,9 @@ static ssize_t fwu_sysfs_show_image(struct file *data_file,
 static ssize_t fwu_sysfs_store_image(struct file *data_file,
 		struct kobject *kobj, struct bin_attribute *attributes,
 		char *buf, loff_t pos, size_t count);
+
+static ssize_t fwu_sysfs_do_recovery_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count);
 
 static ssize_t fwu_sysfs_do_reflash_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count);
@@ -223,6 +238,14 @@ enum flash_command {
 	CMD_ERASE_FLASH_CONFIG,
 	CMD_ERASE_GUEST_CODE,
 	CMD_ENABLE_FLASH_PROG,
+};
+
+enum f35_flash_command {
+	CMD_F35_IDLE = 0x0,
+	CMD_F35_RESERVED = 0x1,
+	CMD_F35_WRITE_CHUNK = 0x2,
+	CMD_F35_ERASE_ALL = 0x3,
+	CMD_F35_RESET = 0x10,
 };
 
 enum container_id {
@@ -530,6 +553,7 @@ struct synaptics_rmi4_fwu_handle {
 	enum bl_version bl_version;
 	bool initialized;
 	bool in_bl_mode;
+	bool in_ub_mode;
 	bool force_update;
 	bool do_lockdown;
 	bool has_guest_code;
@@ -560,6 +584,7 @@ struct synaptics_rmi4_fwu_handle {
 	struct physical_address phyaddr;
 	struct f34_v5v6_flash_properties flash_properties;
 	struct synaptics_rmi4_fn_desc f34_fd;
+	struct synaptics_rmi4_fn_desc f35_fd;
 	struct synaptics_rmi4_data *rmi4_data;
 	struct workqueue_struct *fwu_workqueue;
 	struct work_struct fwu_work;
@@ -576,6 +601,9 @@ static struct bin_attribute dev_attr_data = {
 };
 
 static struct device_attribute attrs[] = {
+	__ATTR(dorecovery, S_IWUGO,
+			synaptics_rmi4_show_error,
+			fwu_sysfs_do_recovery_store),
 	__ATTR(doreflash, S_IWUGO,
 			synaptics_rmi4_show_error,
 			fwu_sysfs_do_reflash_store),
@@ -2212,16 +2240,30 @@ static int fwu_scan_pdt(void)
 	unsigned short addr;
 	bool f01found = false;
 	bool f34found = false;
+	bool f35found = false;
 	struct synaptics_rmi4_fn_desc rmi_fd;
 	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
 
+	fwu->in_ub_mode = false;
+
 	for (addr = PDT_START; addr > PDT_END; addr -= PDT_ENTRY_SIZE) {
-		retval = synaptics_rmi4_reg_read(rmi4_data,
-				addr,
-				(unsigned char *)&rmi_fd,
-				sizeof(rmi_fd));
-		if (retval < 0)
-			return retval;
+		if (addr == PDT_START) {
+			for (ii = 0; ii < 6; ii++) {
+				retval = synaptics_rmi4_reg_read(rmi4_data,
+						addr + ii,
+						&rmi_fd.data[ii],
+						1);
+				if (retval < 0)
+					return retval;
+			}
+		} else {
+			retval = synaptics_rmi4_reg_read(rmi4_data,
+					addr,
+					(unsigned char *)&rmi_fd,
+					sizeof(rmi_fd));
+			if (retval < 0)
+				return retval;
+		}
 
 		if (rmi_fd.fn_number) {
 			dev_dbg(rmi4_data->pdev->dev.parent,
@@ -2275,6 +2317,15 @@ static int fwu_scan_pdt(void)
 					fwu->intr_mask |= 1 << ii;
 				}
 				break;
+			case SYNAPTICS_RMI4_F35:
+				f35found = true;
+				fwu->f35_fd.query_base_addr =
+						rmi_fd.query_base_addr;
+				fwu->f35_fd.ctrl_base_addr =
+						rmi_fd.ctrl_base_addr;
+				fwu->f35_fd.data_base_addr =
+						rmi_fd.data_base_addr;
+				break;
 			}
 		} else {
 			break;
@@ -2287,7 +2338,19 @@ static int fwu_scan_pdt(void)
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to find both F01 and F34\n",
 				__func__);
-		return -EINVAL;
+		if (!f35found) {
+			dev_err(rmi4_data->pdev->dev.parent,
+					"%s: Failed to find F35\n",
+					__func__);
+			return -EINVAL;
+		} else {
+			fwu->in_ub_mode = true;
+			dev_dbg(rmi4_data->pdev->dev.parent,
+					"%s: In microbootloader mode\n",
+					__func__);
+			fwu_recovery_check_status();
+			return 0;
+		}
 	}
 
 	rmi4_data->intr_mask[0] |= fwu->intr_mask;
@@ -3201,6 +3264,241 @@ exit:
 	return retval;
 }
 
+static int fwu_recovery_check_status(void)
+{
+	int retval;
+	unsigned char base;
+	unsigned char status;
+	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
+
+	base = fwu->f35_fd.data_base_addr;
+
+	retval = synaptics_rmi4_reg_read(rmi4_data,
+			base + F35_ERROR_CODE_OFFSET,
+			&status,
+			1);
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to read status\n",
+				__func__);
+		return retval;
+	}
+
+	status = status & MASK_7BIT;
+
+	if (status != 0x00) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Recovery mode status = %d\n",
+				__func__, status);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int fwu_recovery_erase_all(void)
+{
+	int retval;
+	unsigned char base;
+	unsigned char command = CMD_F35_ERASE_ALL;
+	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
+
+	base = fwu->f35_fd.ctrl_base_addr;
+
+	retval = synaptics_rmi4_reg_write(rmi4_data,
+			base + F35_CHUNK_COMMAND_OFFSET,
+			&command,
+			1);
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to issue erase all command\n",
+				__func__);
+		return retval;
+	}
+
+	msleep(F35_ERASE_ALL_WAIT_MS);
+
+	retval = fwu_recovery_check_status();
+	if (retval < 0)
+		return retval;
+
+	return 0;
+}
+
+static int fwu_recovery_write_chunk(void)
+{
+	int retval;
+	unsigned char ii;
+	unsigned char base;
+	unsigned char command = CMD_F35_WRITE_CHUNK;
+	unsigned char chunk_number[] = {0, 0};
+	unsigned char chunk_spare;
+	unsigned char chunk_size;
+	unsigned short chunk;
+	unsigned short chunk_total;
+	unsigned char *chunk_ptr = (unsigned char *)fwu->image;
+	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
+
+	base = fwu->f35_fd.ctrl_base_addr;
+
+	retval = synaptics_rmi4_reg_write(rmi4_data,
+			base + F35_CHUNK_NUM_LSB_OFFSET,
+			&chunk_number[0],
+			1);
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to write LSB chunk number\n",
+				__func__);
+		return retval;
+	}
+
+	retval = synaptics_rmi4_reg_write(rmi4_data,
+			base + F35_CHUNK_NUM_MSB_OFFSET,
+			&chunk_number[1],
+			1);
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to write MSB chunk number\n",
+				__func__);
+		return retval;
+	}
+
+	chunk_total = fwu->image_size / F35_CHUNK_SIZE;
+	chunk_spare = fwu->image_size % F35_CHUNK_SIZE;
+	if (chunk_spare)
+		chunk_total++;
+
+	for (chunk = 0; chunk < chunk_total; chunk++) {
+		if (chunk_spare && chunk == chunk_total - 1)
+			chunk_size = chunk_spare;
+		else
+			chunk_size = F35_CHUNK_SIZE;
+
+		for (ii = 0; ii < chunk_size; ii++) {
+			retval = synaptics_rmi4_reg_write(rmi4_data,
+					base + F35_CHUNK_DATA_OFFSET + ii,
+					chunk_ptr,
+					1);
+			if (retval < 0) {
+				dev_err(rmi4_data->pdev->dev.parent,
+						"%s: Failed to write chunk data (chunk %d)\n",
+						__func__, chunk);
+				return retval;
+			}
+			chunk_ptr++;
+		}
+
+		retval = synaptics_rmi4_reg_write(rmi4_data,
+				base + F35_CHUNK_COMMAND_OFFSET,
+				&command,
+				1);
+		if (retval < 0) {
+			dev_err(rmi4_data->pdev->dev.parent,
+					"%s: Failed to issue write chunk command\n",
+					__func__);
+			return retval;
+		}
+
+		retval = fwu_recovery_check_status();
+		if (retval < 0) {
+			dev_err(rmi4_data->pdev->dev.parent,
+					"%s: Failed to execute write chunk command (chunk %d)\n",
+					__func__, chunk);
+			return retval;
+		}
+	}
+
+	return 0;
+}
+
+static int fwu_recovery_reset(void)
+{
+	int retval;
+	unsigned char base;
+	unsigned char command = CMD_F35_RESET;
+	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
+
+	base = fwu->f35_fd.ctrl_base_addr;
+
+	retval = synaptics_rmi4_reg_write(rmi4_data,
+			base + F35_CHUNK_COMMAND_OFFSET,
+			&command,
+			1);
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to issue reset command\n",
+				__func__);
+		return retval;
+	}
+
+	msleep(F35_RESET_WAIT_MS);
+
+	return 0;
+}
+
+static int fwu_start_recovery(void)
+{
+	int retval;
+	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
+
+	if (rmi4_data->sensor_sleep) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Sensor sleeping\n",
+				__func__);
+		return -ENODEV;
+	}
+
+	rmi4_data->stay_awake = true;
+
+	retval = rmi4_data->irq_enable(rmi4_data, false, false);
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to disable interrupt\n",
+				__func__);
+		return retval;
+	}
+
+	pr_notice("%s: Start of recovery process\n", __func__);
+
+	retval = fwu_recovery_erase_all();
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to do erase all in recovery mode\n",
+				__func__);
+		return retval;
+	}
+
+	pr_notice("%s: External flash erased\n", __func__);
+
+	retval = fwu_recovery_write_chunk();
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to write chunk data in recovery mode\n",
+				__func__);
+		return retval;
+	}
+
+	pr_notice("%s: Chunk data programmed\n", __func__);
+
+	retval = fwu_recovery_reset();
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to reset device in recovery mode\n",
+				__func__);
+		return retval;
+	}
+
+	pr_notice("%s: Recovery mode reset issued\n", __func__);
+
+	rmi4_data->reset_device(rmi4_data);
+
+	pr_notice("%s: End of recovery process\n", __func__);
+
+	rmi4_data->stay_awake = false;
+
+	return 0;
+}
+
 int synaptics_fw_updater(const unsigned char *fw_data)
 {
 	int retval;
@@ -3209,6 +3507,9 @@ int synaptics_fw_updater(const unsigned char *fw_data)
 		return -ENODEV;
 
 	if (!fwu->initialized)
+		return -ENODEV;
+
+	if (fwu->in_ub_mode)
 		return -ENODEV;
 
 	fwu->image = fw_data;
@@ -3275,6 +3576,48 @@ static ssize_t fwu_sysfs_store_image(struct file *data_file,
 	fwu->data_pos += count;
 
 	return count;
+}
+
+static ssize_t fwu_sysfs_do_recovery_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int retval;
+	unsigned int input;
+	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
+
+	if (sscanf(buf, "%u", &input) != 1) {
+		retval = -EINVAL;
+		goto exit;
+	}
+
+	if (!fwu->in_ub_mode) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Not in microbootloader mode\n",
+				__func__);
+		retval = -EINVAL;
+		goto exit;
+	}
+
+	if (!fwu->ext_data_source)
+		return -EINVAL;
+	else
+		fwu->image = fwu->ext_data_source;
+
+	retval = fwu_start_recovery();
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to do recovery\n",
+				__func__);
+		goto exit;
+	}
+
+	retval = count;
+
+exit:
+	kfree(fwu->ext_data_source);
+	fwu->ext_data_source = NULL;
+	fwu->image = NULL;
+	return retval;
 }
 
 static ssize_t fwu_sysfs_do_reflash_store(struct device *dev,
@@ -3587,9 +3930,11 @@ static int synaptics_rmi4_fwu_init(struct synaptics_rmi4_data *rmi4_data)
 	if (retval < 0)
 		goto exit_free_mem;
 
-	retval = fwu_read_f34_queries();
-	if (retval < 0)
-		goto exit_free_mem;
+	if (!fwu->in_ub_mode) {
+		retval = fwu_read_f34_queries();
+		if (retval < 0)
+			goto exit_free_mem;
+	}
 
 	fwu->force_update = FORCE_UPDATE;
 	fwu->do_lockdown = DO_LOCKDOWN;
@@ -3677,14 +4022,19 @@ exit:
 
 static void synaptics_rmi4_fwu_reset(struct synaptics_rmi4_data *rmi4_data)
 {
+	int retval;
+
 	if (!fwu) {
 		synaptics_rmi4_fwu_init(rmi4_data);
 		return;
 	}
 
-	fwu_scan_pdt();
+	retval = fwu_scan_pdt();
+	if (retval < 0)
+		return;
 
-	fwu_read_f34_queries();
+	if (!fwu->in_ub_mode)
+		fwu_read_f34_queries();
 
 	return;
 }

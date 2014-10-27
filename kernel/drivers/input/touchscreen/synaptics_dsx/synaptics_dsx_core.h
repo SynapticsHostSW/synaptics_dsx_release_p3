@@ -52,6 +52,7 @@
 #define SYNAPTICS_RMI4_F12 (0x12)
 #define SYNAPTICS_RMI4_F1A (0x1a)
 #define SYNAPTICS_RMI4_F34 (0x34)
+#define SYNAPTICS_RMI4_F35 (0x35)
 #define SYNAPTICS_RMI4_F38 (0x38)
 #define SYNAPTICS_RMI4_F51 (0x51)
 #define SYNAPTICS_RMI4_F54 (0x54)
@@ -105,16 +106,21 @@ enum exp_fn {
  * @fn_number: function number
  */
 struct synaptics_rmi4_fn_desc {
-	unsigned char query_base_addr;
-	unsigned char cmd_base_addr;
-	unsigned char ctrl_base_addr;
-	unsigned char data_base_addr;
-	unsigned char intr_src_count:3;
-	unsigned char reserved_1:2;
-	unsigned char fn_version:2;
-	unsigned char reserved_2:1;
-	unsigned char fn_number;
-} __packed;
+	union{
+		struct {
+			unsigned char query_base_addr;
+			unsigned char cmd_base_addr;
+			unsigned char ctrl_base_addr;
+			unsigned char data_base_addr;
+			unsigned char intr_src_count:3;
+			unsigned char reserved_1:2;
+			unsigned char fn_version:2;
+			unsigned char reserved_2:1;
+			unsigned char fn_number;
+		} __packed;
+		unsigned char data[6];
+	};
+};
 
 /*
  * synaptics_rmi4_fn_full_addr - full 16-bit base addresses

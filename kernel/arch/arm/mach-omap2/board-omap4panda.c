@@ -102,6 +102,7 @@
 #if (SYNAPTICS_MODULE == TM2448)
 #define SYNAPTICS_I2C_DEVICE
 #define DSX_I2C_ADDR 0x20
+#define DSX_UB_I2C_ADDR -1
 #define DSX_ATTN_GPIO 39
 #define DSX_ATTN_MUX_NAME "gpmc_ad15.gpio_39"
 #define DSX_POWER_GPIO 140
@@ -126,6 +127,7 @@ static unsigned int vir_button_codes[] = {
 #elif (SYNAPTICS_MODULE == TM1940)
 #define SYNAPTICS_I2C_DEVICE
 #define DSX_I2C_ADDR 0x20
+#define DSX_UB_I2C_ADDR -1
 #define DSX_ATTN_GPIO 39
 #define DSX_ATTN_MUX_NAME "gpmc_ad15.gpio_39"
 #define DSX_POWER_GPIO -1
@@ -153,6 +155,7 @@ static unsigned int vir_button_codes[] =
 #define DSX_SPI_MAX_SPEED (8 * 1000 * 1000)
 #define DSX_SPI_BYTE_DELAY_US 20
 #define DSX_SPI_BLOCK_DELAY_US 20
+#define DSX_UB_I2C_ADDR -1
 #define DSX_ATTN_GPIO 39
 #define DSX_ATTN_MUX_NAME "gpmc_ad15.gpio_39"
 #define DSX_POWER_GPIO 140
@@ -178,6 +181,7 @@ static unsigned int vir_button_codes[] =
 #define SYNAPTICS_HID_DEVICE
 #define DSX_HID_DEVICE_DESCRIPTOR_ADDR 0x0020
 #define DSX_I2C_ADDR 0x2c
+#define DSX_UB_I2C_ADDR -1
 #define DSX_ATTN_GPIO 39
 #define DSX_ATTN_MUX_NAME "gpmc_ad15.gpio_39"
 #define DSX_POWER_GPIO 140
@@ -221,6 +225,7 @@ static struct synaptics_dsx_board_data dsx_board_data = {
 	.reset_delay_ms = DSX_RESET_DELAY_MS,
 	.reset_active_ms = DSX_RESET_ACTIVE_MS,
 	.max_y_for_2d = DSX_MAX_Y_FOR_2D,
+	.ub_i2c_addr = DSX_UB_I2C_ADDR,
 	.pwr_reg_name = pwr_reg_name,
 	.bus_reg_name = bus_reg_name,
 	.cap_button_map = &cap_button_map,
