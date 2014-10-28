@@ -301,7 +301,7 @@ static ssize_t rmidev_sysfs_release_store(struct device *dev,
 			"%s: Attention interrupt enabled\n",
 			__func__);
 
-	rmi4_data->reset_device(rmi4_data);
+	rmi4_data->reset_device(rmi4_data, false);
 
 	rmi4_data->stay_awake = false;
 
@@ -614,7 +614,7 @@ static int rmidev_release(struct inode *inp, struct file *filp)
 
 	mutex_unlock(&(dev_data->file_mutex));
 
-	rmi4_data->reset_device(rmi4_data);
+	rmi4_data->reset_device(rmi4_data, false);
 
 	rmi4_data->stay_awake = false;
 
@@ -698,7 +698,7 @@ static int rmidev_init_device(struct synaptics_rmi4_data *rmi4_data)
 	struct rmidev_data *dev_data;
 	struct device *device_ptr;
 	const struct synaptics_dsx_board_data *bdata =
-				rmi4_data->hw_if->board_data;
+			rmi4_data->hw_if->board_data;
 
 	rmidev = kzalloc(sizeof(*rmidev), GFP_KERNEL);
 	if (!rmidev) {
@@ -865,6 +865,8 @@ static void rmidev_remove_device(struct synaptics_rmi4_data *rmi4_data)
 {
 	unsigned char attr_count;
 	struct rmidev_data *dev_data;
+	const struct synaptics_dsx_board_data *bdata =
+			rmi4_data->hw_if->board_data;
 
 	if (!rmidev)
 		goto exit;
@@ -875,6 +877,8 @@ static void rmidev_remove_device(struct synaptics_rmi4_data *rmi4_data)
 	sysfs_remove_bin_file(rmidev->sysfs_dir, &attr_data);
 
 	kobject_put(rmidev->sysfs_dir);
+
+	gpio_unexport(bdata->irq_gpio);
 
 	dev_data = rmidev->data;
 	if (dev_data) {

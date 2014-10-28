@@ -1843,14 +1843,14 @@ static ssize_t test_sysfs_read_report_store(struct device *dev,
 			goto exit;
 		break;
 	default:
-		rmi4_data->reset_device(rmi4_data);
+		rmi4_data->reset_device(rmi4_data, false);
 		break;
 	}
 
 	return count;
 
 exit:
-	rmi4_data->reset_device(rmi4_data);
+	rmi4_data->reset_device(rmi4_data, false);
 
 	return retval;
 }

@@ -61,7 +61,9 @@
 #define RPT_WY (1 << 7)
 #define RPT_DEFAULT (RPT_TYPE | RPT_X_LSB | RPT_X_MSB | RPT_Y_LSB | RPT_Y_MSB)
 
-#define EXP_FN_WORK_DELAY_MS 1000 /* ms */
+#define REBUILD_WORK_DELAY_MS 500 /* ms */
+
+#define EXP_FN_WORK_DELAY_MS 500 /* ms */
 #define MAX_F11_TOUCH_WIDTH 15
 #define MAX_F12_TOUCH_WIDTH 255
 
@@ -94,7 +96,8 @@ static int synaptics_rmi4_f12_set_enables(struct synaptics_rmi4_data *rmi4_data,
 
 static int synaptics_rmi4_free_fingers(struct synaptics_rmi4_data *rmi4_data);
 static int synaptics_rmi4_reinit_device(struct synaptics_rmi4_data *rmi4_data);
-static int synaptics_rmi4_reset_device(struct synaptics_rmi4_data *rmi4_data);
+static int synaptics_rmi4_reset_device(struct synaptics_rmi4_data *rmi4_data,
+		bool rebuild);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void synaptics_rmi4_early_suspend(struct early_suspend *h);
@@ -555,7 +558,7 @@ static ssize_t synaptics_rmi4_f01_reset_store(struct device *dev,
 	if (reset != 1)
 		return -EINVAL;
 
-	retval = synaptics_rmi4_reset_device(rmi4_data);
+	retval = synaptics_rmi4_reset_device(rmi4_data, false);
 	if (retval < 0) {
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to issue reset command, error = %d\n",
@@ -2890,6 +2893,84 @@ static int synaptics_rmi4_sw_reset(struct synaptics_rmi4_data *rmi4_data)
 	return 0;
 }
 
+static void synaptics_rmi4_rebuild_work(struct work_struct *work)
+{
+	int retval;
+	unsigned char attr_count;
+	struct synaptics_rmi4_exp_fhandler *exp_fhandler;
+	struct delayed_work *delayed_work =
+			container_of(work, struct delayed_work, work);
+	struct synaptics_rmi4_data *rmi4_data =
+			container_of(delayed_work, struct synaptics_rmi4_data,
+			rebuild_work);
+
+	mutex_lock(&(rmi4_data->rmi4_reset_mutex));
+
+	mutex_lock(&exp_data.mutex);
+
+	synaptics_rmi4_irq_enable(rmi4_data, false, false);
+
+	if (!list_empty(&exp_data.list)) {
+		list_for_each_entry(exp_fhandler, &exp_data.list, link)
+			if (exp_fhandler->exp_fn->remove != NULL)
+				exp_fhandler->exp_fn->remove(rmi4_data);
+	}
+
+	for (attr_count = 0; attr_count < ARRAY_SIZE(attrs); attr_count++) {
+		sysfs_remove_file(&rmi4_data->input_dev->dev.kobj,
+				&attrs[attr_count].attr);
+	}
+
+	synaptics_rmi4_free_fingers(rmi4_data);
+	synaptics_rmi4_empty_fn_list(rmi4_data);
+	input_unregister_device(rmi4_data->input_dev);
+	rmi4_data->input_dev = NULL;
+
+	retval = synaptics_rmi4_sw_reset(rmi4_data);
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to issue reset command\n",
+				__func__);
+		goto exit;
+	}
+
+	retval = synaptics_rmi4_set_input_dev(rmi4_data);
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to set up input device\n",
+				__func__);
+		goto exit;
+	}
+
+	for (attr_count = 0; attr_count < ARRAY_SIZE(attrs); attr_count++) {
+		retval = sysfs_create_file(&rmi4_data->input_dev->dev.kobj,
+				&attrs[attr_count].attr);
+		if (retval < 0) {
+			dev_err(rmi4_data->pdev->dev.parent,
+					"%s: Failed to create sysfs attributes\n",
+					__func__);
+			goto exit;
+		}
+	}
+
+	if (!list_empty(&exp_data.list)) {
+		list_for_each_entry(exp_fhandler, &exp_data.list, link)
+			if (exp_fhandler->exp_fn->init != NULL)
+				exp_fhandler->exp_fn->init(rmi4_data);
+	}
+
+	retval = 0;
+
+exit:
+	synaptics_rmi4_irq_enable(rmi4_data, true, false);
+
+	mutex_unlock(&exp_data.mutex);
+
+	mutex_unlock(&(rmi4_data->rmi4_reset_mutex));
+
+	return;
+}
+
 static int synaptics_rmi4_reinit_device(struct synaptics_rmi4_data *rmi4_data)
 {
 	int retval;
@@ -2933,13 +3014,18 @@ exit:
 	return retval;
 }
 
-static int synaptics_rmi4_reset_device(struct synaptics_rmi4_data *rmi4_data)
+static int synaptics_rmi4_reset_device(struct synaptics_rmi4_data *rmi4_data,
+		bool rebuild)
 {
 	int retval;
-	int temp;
 	struct synaptics_rmi4_exp_fhandler *exp_fhandler;
-	const struct synaptics_dsx_board_data *bdata =
-				rmi4_data->hw_if->board_data;
+
+	if (rebuild) {
+		queue_delayed_work(rmi4_data->rebuild_workqueue,
+				&rmi4_data->rebuild_work,
+				msecs_to_jiffies(REBUILD_WORK_DELAY_MS));
+		return 0;
+	}
 
 	mutex_lock(&(rmi4_data->rmi4_reset_mutex));
 
@@ -2950,8 +3036,7 @@ static int synaptics_rmi4_reset_device(struct synaptics_rmi4_data *rmi4_data)
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to issue reset command\n",
 				__func__);
-		mutex_unlock(&(rmi4_data->rmi4_reset_mutex));
-		return retval;
+		goto exit;
 	}
 
 	synaptics_rmi4_free_fingers(rmi4_data);
@@ -2963,20 +3048,8 @@ static int synaptics_rmi4_reset_device(struct synaptics_rmi4_data *rmi4_data)
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to query device\n",
 				__func__);
-		mutex_unlock(&(rmi4_data->rmi4_reset_mutex));
-		return retval;
+		goto exit;
 	}
-
-	if (bdata->swap_axes) {
-		temp = rmi4_data->sensor_max_x;
-		rmi4_data->sensor_max_x = rmi4_data->sensor_max_y;
-		rmi4_data->sensor_max_y = temp;
-	}
-
-	if (bdata->max_y_for_2d >= 0)
-		rmi4_data->sensor_max_y = bdata->max_y_for_2d;
-
-	synaptics_rmi4_set_params(rmi4_data);
 
 	mutex_lock(&exp_data.mutex);
 	if (!list_empty(&exp_data.list)) {
@@ -2986,11 +3059,14 @@ static int synaptics_rmi4_reset_device(struct synaptics_rmi4_data *rmi4_data)
 	}
 	mutex_unlock(&exp_data.mutex);
 
+	retval = 0;
+
+exit:
 	synaptics_rmi4_irq_enable(rmi4_data, true, false);
 
 	mutex_unlock(&(rmi4_data->rmi4_reset_mutex));
 
-	return 0;
+	return retval;
 }
 
 static void synaptics_rmi4_exp_fn_work(struct work_struct *work)
@@ -3213,6 +3289,9 @@ static int __devinit synaptics_rmi4_probe(struct platform_device *pdev)
 			goto err_sysfs;
 		}
 	}
+
+	rmi4_data->rebuild_workqueue = create_singlethread_workqueue("dsx_rebuild_workqueue");
+	INIT_DELAYED_WORK(&rmi4_data->rebuild_work, synaptics_rmi4_rebuild_work);
 
 	exp_data.workqueue = create_singlethread_workqueue("dsx_exp_workqueue");
 	INIT_DELAYED_WORK(&exp_data.work, synaptics_rmi4_exp_fn_work);

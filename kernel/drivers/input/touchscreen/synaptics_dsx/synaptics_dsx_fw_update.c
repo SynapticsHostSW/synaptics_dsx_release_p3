@@ -2724,7 +2724,7 @@ static int fwu_write_flash_configuration(void)
 	if (retval < 0)
 		return retval;
 
-	rmi4_data->reset_device(rmi4_data);
+	rmi4_data->reset_device(rmi4_data, false);
 
 	return 0;
 }
@@ -2942,7 +2942,7 @@ static int fwu_do_read_config(void)
 	retval = fwu_read_f34_blocks(block_count, CMD_READ_CONFIG);
 
 exit:
-	rmi4_data->reset_device(rmi4_data);
+	rmi4_data->reset_device(rmi4_data, false);
 
 	return retval;
 }
@@ -3027,7 +3027,7 @@ static int fwu_start_write_guest_code(void)
 	pr_notice("%s: Guest code programmed\n", __func__);
 
 exit:
-	rmi4_data->reset_device(rmi4_data);
+	rmi4_data->reset_device(rmi4_data, false);
 
 	pr_notice("%s: End of write guest code process\n", __func__);
 
@@ -3115,7 +3115,14 @@ static int fwu_start_write_config(void)
 	pr_notice("%s: Config written\n", __func__);
 
 exit:
-	rmi4_data->reset_device(rmi4_data);
+	switch (fwu->config_area) {
+	case UI_CONFIG_AREA:
+		rmi4_data->reset_device(rmi4_data, true);
+		break;
+	case DP_CONFIG_AREA:
+		rmi4_data->reset_device(rmi4_data, false);
+		break;
+	}
 
 	pr_notice("%s: End of write config process\n", __func__);
 
@@ -3221,13 +3228,16 @@ static int fwu_start_reflash(void)
 
 	if (flash_area != NONE) {
 		retval = fwu_enter_flash_prog();
-		if (retval < 0)
-			goto reset;
+		if (retval < 0) {
+			rmi4_data->reset_device(rmi4_data, false);
+			goto exit;
+		}
 	}
 
 	switch (flash_area) {
 	case UI_FIRMWARE:
 		retval = fwu_do_reflash();
+		rmi4_data->reset_device(rmi4_data, true);
 		break;
 	case UI_CONFIG:
 		retval = fwu_check_ui_configuration_size();
@@ -3238,10 +3248,12 @@ static int fwu_start_reflash(void)
 		if (retval < 0)
 			break;
 		retval = fwu_write_ui_configuration();
+		rmi4_data->reset_device(rmi4_data, true);
 		break;
 	case NONE:
 	default:
-		goto reset;
+		rmi4_data->reset_device(rmi4_data, false);
+		break;
 	}
 
 	if (retval < 0) {
@@ -3249,9 +3261,6 @@ static int fwu_start_reflash(void)
 				"%s: Failed to do reflash\n",
 				__func__);
 	}
-
-reset:
-	rmi4_data->reset_device(rmi4_data);
 
 exit:
 	if (fw_entry)
@@ -3490,7 +3499,7 @@ static int fwu_start_recovery(void)
 
 	pr_notice("%s: Recovery mode reset issued\n", __func__);
 
-	rmi4_data->reset_device(rmi4_data);
+	rmi4_data->reset_device(rmi4_data, true);
 
 	pr_notice("%s: End of recovery process\n", __func__);
 

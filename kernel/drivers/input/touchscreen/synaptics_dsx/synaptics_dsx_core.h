@@ -222,6 +222,8 @@ struct synaptics_rmi4_device_info {
  * @rmi4_reset_mutex: mutex for software reset
  * @rmi4_report_mutex: mutex for input event reporting
  * @rmi4_io_ctrl_mutex: mutex for communication interface I/O
+ * @rebuild_work: work for rebuilding input device
+ * @rebuild_workqueue: workqueue for rebuilding input device
  * @early_suspend: early suspend power management
  * @current_page: current RMI page for register access
  * @button_0d_enabled: switch for enabling 0d button support
@@ -266,6 +268,8 @@ struct synaptics_rmi4_data {
 	struct mutex rmi4_reset_mutex;
 	struct mutex rmi4_report_mutex;
 	struct mutex rmi4_io_ctrl_mutex;
+	struct delayed_work rebuild_work;
+	struct workqueue_struct *rebuild_workqueue;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif
@@ -298,7 +302,8 @@ struct synaptics_rmi4_data {
 	bool f12_wakeup_gesture;
 	bool enable_wakeup_gesture;
 	bool wedge_sensor;
-	int (*reset_device)(struct synaptics_rmi4_data *rmi4_data);
+	int (*reset_device)(struct synaptics_rmi4_data *rmi4_data,
+			bool rebuild);
 	int (*irq_enable)(struct synaptics_rmi4_data *rmi4_data, bool enable,
 			bool attn_only);
 };
