@@ -33,6 +33,10 @@
 #define KERNEL_ABOVE_2_6_38
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0))
+#define KERNEL_ABOVE_3_6
+#endif
+
 #ifdef KERNEL_ABOVE_2_6_38
 #define sstrtoul(...) kstrtoul(__VA_ARGS__)
 #else
@@ -106,7 +110,7 @@ enum exp_fn {
  * @fn_number: function number
  */
 struct synaptics_rmi4_fn_desc {
-	union{
+	union {
 		struct {
 			unsigned char query_base_addr;
 			unsigned char cmd_base_addr;
@@ -222,8 +226,8 @@ struct synaptics_rmi4_device_info {
  * @rmi4_reset_mutex: mutex for software reset
  * @rmi4_report_mutex: mutex for input event reporting
  * @rmi4_io_ctrl_mutex: mutex for communication interface I/O
- * @rebuild_work: work for rebuilding input device
- * @rebuild_workqueue: workqueue for rebuilding input device
+ * @rb_work: work for rebuilding input device
+ * @rb_workqueue: workqueue for rebuilding input device
  * @early_suspend: early suspend power management
  * @current_page: current RMI page for register access
  * @button_0d_enabled: switch for enabling 0d button support
@@ -268,8 +272,8 @@ struct synaptics_rmi4_data {
 	struct mutex rmi4_reset_mutex;
 	struct mutex rmi4_report_mutex;
 	struct mutex rmi4_io_ctrl_mutex;
-	struct delayed_work rebuild_work;
-	struct workqueue_struct *rebuild_workqueue;
+	struct delayed_work rb_work;
+	struct workqueue_struct *rb_workqueue;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif

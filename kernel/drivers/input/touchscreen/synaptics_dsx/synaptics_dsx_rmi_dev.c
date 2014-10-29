@@ -890,8 +890,7 @@ static void rmidev_remove_device(struct synaptics_rmi4_data *rmi4_data)
 
 	class_destroy(rmidev_device_class);
 
-	if (rmidev->tmpbuf)
-		kfree(rmidev->tmpbuf);
+	kfree(rmidev->tmpbuf);
 
 	kfree(rmidev);
 	rmidev = NULL;

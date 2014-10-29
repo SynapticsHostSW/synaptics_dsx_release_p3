@@ -2091,7 +2091,7 @@ static int fwu_get_image_firmware_id(unsigned int *fw_id)
 	if (fwu->img.contains_firmware_id) {
 		*fw_id = fwu->img.firmware_id;
 	} else {
-		strptr = strstr(fwu->image_name, "PR");
+		strptr = strnstr(fwu->image_name, "PR", MAX_IMAGE_NAME_LEN);
 		if (!strptr) {
 			dev_err(rmi4_data->pdev->dev.parent,
 					"%s: No valid PR number (PRxxxxxxx) "

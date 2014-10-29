@@ -47,9 +47,7 @@
 
 #define F12_DATA_15_WORKAROUND
 
-/*
 #define IGNORE_FN_INIT_FAILURE
-*/
 
 #define RPT_TYPE (1 << 0)
 #define RPT_X_LSB (1 << 1)
@@ -2147,7 +2145,7 @@ static int synaptics_rmi4_check_status(struct synaptics_rmi4_data *rmi4_data,
 		if (timeout > 0)
 			msleep(20);
 		else
-			return -1;
+			return -EINVAL;
 
 		retval = synaptics_rmi4_reg_read(rmi4_data,
 				rmi4_data->f01_data_base_addr,
@@ -2569,8 +2567,13 @@ static void synaptics_rmi4_set_params(struct synaptics_rmi4_data *rmi4_data)
 #endif
 
 #ifdef TYPE_B_PROTOCOL
+#ifdef KERNEL_ABOVE_3_6
+	input_mt_init_slots(rmi4_data->input_dev,
+			rmi4_data->num_of_fingers, INPUT_MT_DIRECT);
+#else
 	input_mt_init_slots(rmi4_data->input_dev,
 			rmi4_data->num_of_fingers);
+#endif
 #endif
 
 	f1a = NULL;
@@ -2902,7 +2905,7 @@ static void synaptics_rmi4_rebuild_work(struct work_struct *work)
 			container_of(work, struct delayed_work, work);
 	struct synaptics_rmi4_data *rmi4_data =
 			container_of(delayed_work, struct synaptics_rmi4_data,
-			rebuild_work);
+			rb_work);
 
 	mutex_lock(&(rmi4_data->rmi4_reset_mutex));
 
@@ -3021,8 +3024,8 @@ static int synaptics_rmi4_reset_device(struct synaptics_rmi4_data *rmi4_data,
 	struct synaptics_rmi4_exp_fhandler *exp_fhandler;
 
 	if (rebuild) {
-		queue_delayed_work(rmi4_data->rebuild_workqueue,
-				&rmi4_data->rebuild_work,
+		queue_delayed_work(rmi4_data->rb_workqueue,
+				&rmi4_data->rb_work,
 				msecs_to_jiffies(REBUILD_WORK_DELAY_MS));
 		return 0;
 	}
@@ -3144,7 +3147,7 @@ exit:
 }
 EXPORT_SYMBOL(synaptics_rmi4_new_function);
 
-static int __devinit synaptics_rmi4_probe(struct platform_device *pdev)
+static int synaptics_rmi4_probe(struct platform_device *pdev)
 {
 	int retval;
 	unsigned char attr_count;
@@ -3290,8 +3293,9 @@ static int __devinit synaptics_rmi4_probe(struct platform_device *pdev)
 		}
 	}
 
-	rmi4_data->rebuild_workqueue = create_singlethread_workqueue("dsx_rebuild_workqueue");
-	INIT_DELAYED_WORK(&rmi4_data->rebuild_work, synaptics_rmi4_rebuild_work);
+	rmi4_data->rb_workqueue =
+			create_singlethread_workqueue("dsx_rebuild_workqueue");
+	INIT_DELAYED_WORK(&rmi4_data->rb_work, synaptics_rmi4_rebuild_work);
 
 	exp_data.workqueue = create_singlethread_workqueue("dsx_exp_workqueue");
 	INIT_DELAYED_WORK(&exp_data.work, synaptics_rmi4_exp_fn_work);
@@ -3349,7 +3353,7 @@ err_get_reg:
 	return retval;
 }
 
-static int __devexit synaptics_rmi4_remove(struct platform_device *pdev)
+static int synaptics_rmi4_remove(struct platform_device *pdev)
 {
 	unsigned char attr_count;
 	struct synaptics_rmi4_data *rmi4_data = platform_get_drvdata(pdev);
@@ -3727,7 +3731,7 @@ static struct platform_driver synaptics_rmi4_driver = {
 #endif
 	},
 	.probe = synaptics_rmi4_probe,
-	.remove = __devexit_p(synaptics_rmi4_remove),
+	.remove = synaptics_rmi4_remove,
 };
 
 static int __init synaptics_rmi4_init(void)
