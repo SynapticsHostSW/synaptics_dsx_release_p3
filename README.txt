@@ -65,6 +65,10 @@ drivers/input/touchscreen/synaptics_dsx_proximity.c
    The source code of the test reporting module used for retrieving production
    test reports.
 
+[optional] drivers/input/touchscreen/synaptics_dsx_video.c
+   The source code of the video module used for sending display DCS commands via
+   RMI.
+
 [optional] drivers/input/touchscreen/synaptics_dsx_debug.c
    The source code of the debug module used for supporting firmware debug
    functionalities.
@@ -218,3 +222,21 @@ example board file and in the synaptics,max-y-for-2d property in the example
 dtsi file. Note that this maximum Y value for the display area is to be
 specified in sensor resolution units, not in display resolution units (unless
 the two match).
+
+
+
+MISCELLANEOUS OPTIONS
+---------------------
+
+Wakeup Gesture
+** To enable wakeup gesture support, set the WAKEUP_GESTURE macro found in
+   synaptics_dsx_core.c to true.
+
+Microbootloader Mode I2C Slave Address
+** TDDI solutions define an on-chip microbootloder due to the use of an external
+   flash where the bootloader, UI firmware, and various configuration areas
+   reside. The microbootloader may have a unique I2C slave address and is used
+   during recovery when the external flash is blank or corrupt. The unique I2C
+   slave address of the microbootloader may be defined with the DSX_UB_I2C_ADDR
+   macro in the board file or with the synaptics,ub-i2c-addr property in the
+   dtsi file.
