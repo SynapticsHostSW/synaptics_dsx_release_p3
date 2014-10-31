@@ -2247,23 +2247,12 @@ static int fwu_scan_pdt(void)
 	fwu->in_ub_mode = false;
 
 	for (addr = PDT_START; addr > PDT_END; addr -= PDT_ENTRY_SIZE) {
-		if (addr == PDT_START) {
-			for (ii = 0; ii < 6; ii++) {
-				retval = synaptics_rmi4_reg_read(rmi4_data,
-						addr + ii,
-						&rmi_fd.data[ii],
-						1);
-				if (retval < 0)
-					return retval;
-			}
-		} else {
-			retval = synaptics_rmi4_reg_read(rmi4_data,
-					addr,
-					(unsigned char *)&rmi_fd,
-					sizeof(rmi_fd));
-			if (retval < 0)
-				return retval;
-		}
+		retval = synaptics_rmi4_reg_read(rmi4_data,
+				addr,
+				(unsigned char *)&rmi_fd,
+				sizeof(rmi_fd));
+		if (retval < 0)
+			return retval;
 
 		if (rmi_fd.fn_number) {
 			dev_dbg(rmi4_data->pdev->dev.parent,
@@ -3317,7 +3306,7 @@ static int fwu_recovery_erase_all(void)
 	retval = synaptics_rmi4_reg_write(rmi4_data,
 			base + F35_CHUNK_COMMAND_OFFSET,
 			&command,
-			1);
+			sizeof(command));
 	if (retval < 0) {
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to issue erase all command\n",
@@ -3337,14 +3326,14 @@ static int fwu_recovery_erase_all(void)
 static int fwu_recovery_write_chunk(void)
 {
 	int retval;
-	unsigned char ii;
 	unsigned char base;
-	unsigned char command = CMD_F35_WRITE_CHUNK;
 	unsigned char chunk_number[] = {0, 0};
 	unsigned char chunk_spare;
 	unsigned char chunk_size;
+	unsigned char buf[F35_CHUNK_SIZE + 1];
 	unsigned short chunk;
 	unsigned short chunk_total;
+	unsigned short bytes_written = 0;
 	unsigned char *chunk_ptr = (unsigned char *)fwu->image;
 	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
 
@@ -3352,25 +3341,16 @@ static int fwu_recovery_write_chunk(void)
 
 	retval = synaptics_rmi4_reg_write(rmi4_data,
 			base + F35_CHUNK_NUM_LSB_OFFSET,
-			&chunk_number[0],
-			1);
+			chunk_number,
+			sizeof(chunk_number));
 	if (retval < 0) {
 		dev_err(rmi4_data->pdev->dev.parent,
-				"%s: Failed to write LSB chunk number\n",
+				"%s: Failed to write chunk number\n",
 				__func__);
 		return retval;
 	}
 
-	retval = synaptics_rmi4_reg_write(rmi4_data,
-			base + F35_CHUNK_NUM_MSB_OFFSET,
-			&chunk_number[1],
-			1);
-	if (retval < 0) {
-		dev_err(rmi4_data->pdev->dev.parent,
-				"%s: Failed to write MSB chunk number\n",
-				__func__);
-		return retval;
-	}
+	buf[sizeof(buf) - 1] = CMD_F35_WRITE_CHUNK;
 
 	chunk_total = fwu->image_size / F35_CHUNK_SIZE;
 	chunk_spare = fwu->image_size % F35_CHUNK_SIZE;
@@ -3383,38 +3363,31 @@ static int fwu_recovery_write_chunk(void)
 		else
 			chunk_size = F35_CHUNK_SIZE;
 
-		for (ii = 0; ii < chunk_size; ii++) {
-			retval = synaptics_rmi4_reg_write(rmi4_data,
-					base + F35_CHUNK_DATA_OFFSET + ii,
-					chunk_ptr,
-					1);
-			if (retval < 0) {
-				dev_err(rmi4_data->pdev->dev.parent,
-						"%s: Failed to write chunk data (chunk %d)\n",
-						__func__, chunk);
-				return retval;
-			}
-			chunk_ptr++;
-		}
+		memset(buf, 0x00, F35_CHUNK_SIZE);
+		secure_memcpy(buf, sizeof(buf), chunk_ptr,
+					fwu->image_size - bytes_written,
+					chunk_size);
 
 		retval = synaptics_rmi4_reg_write(rmi4_data,
-				base + F35_CHUNK_COMMAND_OFFSET,
-				&command,
-				1);
+				base + F35_CHUNK_DATA_OFFSET,
+				buf,
+				sizeof(buf));
 		if (retval < 0) {
 			dev_err(rmi4_data->pdev->dev.parent,
-					"%s: Failed to issue write chunk command\n",
-					__func__);
-			return retval;
-		}
-
-		retval = fwu_recovery_check_status();
-		if (retval < 0) {
-			dev_err(rmi4_data->pdev->dev.parent,
-					"%s: Failed to execute write chunk command (chunk %d)\n",
+					"%s: Failed to write chunk data (chunk %d)\n",
 					__func__, chunk);
 			return retval;
 		}
+		chunk_ptr += chunk_size;
+		bytes_written += chunk_size;
+	}
+
+	retval = fwu_recovery_check_status();
+	if (retval < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to write chunk data\n",
+				__func__);
+		return retval;
 	}
 
 	return 0;
@@ -3432,7 +3405,7 @@ static int fwu_recovery_reset(void)
 	retval = synaptics_rmi4_reg_write(rmi4_data,
 			base + F35_CHUNK_COMMAND_OFFSET,
 			&command,
-			1);
+			sizeof(command));
 	if (retval < 0) {
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to issue reset command\n",
@@ -3464,6 +3437,7 @@ static int fwu_start_recovery(void)
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to disable interrupt\n",
 				__func__);
+		rmi4_data->stay_awake = false;
 		return retval;
 	}
 
@@ -3474,7 +3448,7 @@ static int fwu_start_recovery(void)
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to do erase all in recovery mode\n",
 				__func__);
-		return retval;
+		goto exit;
 	}
 
 	pr_notice("%s: External flash erased\n", __func__);
@@ -3484,7 +3458,7 @@ static int fwu_start_recovery(void)
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to write chunk data in recovery mode\n",
 				__func__);
-		return retval;
+		goto exit;
 	}
 
 	pr_notice("%s: Chunk data programmed\n", __func__);
@@ -3494,18 +3468,21 @@ static int fwu_start_recovery(void)
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to reset device in recovery mode\n",
 				__func__);
-		return retval;
+		goto exit;
 	}
 
 	pr_notice("%s: Recovery mode reset issued\n", __func__);
 
 	rmi4_data->reset_device(rmi4_data, true);
 
+	retval = 0;
+
+exit:
 	pr_notice("%s: End of recovery process\n", __func__);
 
 	rmi4_data->stay_awake = false;
 
-	return 0;
+	return retval;
 }
 
 int synaptics_fw_updater(const unsigned char *fw_data)

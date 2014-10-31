@@ -2241,7 +2241,6 @@ static int synaptics_rmi4_alloc_fh(struct synaptics_rmi4_fn **fhandler,
 static int synaptics_rmi4_query_device(struct synaptics_rmi4_data *rmi4_data)
 {
 	int retval;
-	unsigned char ii;
 	unsigned char page_number;
 	unsigned char intr_count;
 	unsigned char f01_query[F01_STD_QUERY_LEN];
@@ -2267,24 +2266,12 @@ rescan_pdt:
 				pdt_entry_addr -= PDT_ENTRY_SIZE) {
 			pdt_entry_addr |= (page_number << 8);
 
-			if (pdt_entry_addr == PDT_START) {
-				for (ii = 0; ii < 6; ii++) {
-					retval = synaptics_rmi4_reg_read(
-							rmi4_data,
-							pdt_entry_addr + ii,
-							&rmi_fd.data[ii],
-							1);
-					if (retval < 0)
-						return retval;
-				}
-			} else {
-				retval = synaptics_rmi4_reg_read(rmi4_data,
-						pdt_entry_addr,
-						(unsigned char *)&rmi_fd,
-						sizeof(rmi_fd));
-				if (retval < 0)
-					return retval;
-			}
+			retval = synaptics_rmi4_reg_read(rmi4_data,
+					pdt_entry_addr,
+					(unsigned char *)&rmi_fd,
+					sizeof(rmi_fd));
+			if (retval < 0)
+				return retval;
 
 			pdt_entry_addr &= ~(MASK_8BIT << 8);
 
